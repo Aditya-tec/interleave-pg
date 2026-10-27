@@ -59,7 +59,9 @@ describe('S10: path checks', () => {
     expect(resolveInside(join('test', 'cli.test.ts'), [pkg], 'file')).toContain('cli.test.ts');
     expect(() => resolveInside(join('..', '..', 'package.json'), [pkg], 'file')).toThrow(/outside/);
     expect(() => resolveInside('/etc/passwd', [pkg], 'file')).toThrow(/outside/);
-    expect(() => resolveInside('C:\\Windows\\win.ini', [pkg], 'file')).toThrow(/outside/);
+    // A drive-letter path is only absolute on Windows; on Linux "C:\Windows\win.ini" is an ordinary relative file name.
+    if (process.platform === 'win32') expect(() => resolveInside('C:\\Windows\\win.ini', [pkg], 'file')).toThrow(/outside/);
+    else expect(() => resolveInside('/usr/bin/env', [pkg], 'file')).toThrow(/outside/);
     expect(resolveInside(join('..', '..', 'package.json'), [pkg, join(pkg, '..', '..')], 'file')).toContain('package.json');
   });
 });
