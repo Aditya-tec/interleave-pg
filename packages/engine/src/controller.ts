@@ -1,5 +1,6 @@
 import { als } from './actor-context.js';
 import { StallError, UnsupportedError } from './errors.js';
+import { decide, type Chooser, type Decision } from './choosers.js';
 import type { ActorResult } from './scenario.js';
 
 export interface Stmt {
@@ -44,7 +45,7 @@ class ActorState {
 }
 
 export interface ControllerOptions {
-  schedule: string[];
+  chooser: Chooser;
   runId: number;
   stallTimeoutMs: number;
   runTimeoutMs: number;
@@ -70,6 +71,7 @@ function summarize(r: any): string {
 
 export class Controller {
   readonly steps: Step[] = [];
+  readonly decisions: Decision[] = [];
   readonly warnings: string[] = [];
   readonly results = new Map<string, ActorResult>();
   private actors = new Map<string, ActorState>();
@@ -78,7 +80,6 @@ export class Controller {
   private txnCounter = 0;
   private waiters: (() => void)[] = [];
   private lastChange = Date.now();
-  private cursor = 0;
   private lastPicked?: string;
   private aborted?: Error;
 
@@ -185,7 +186,14 @@ export class Controller {
       const all = [...this.actors.values()];
       const running = all.filter((a) => a.status === 'RUNNING');
       const unclassified = all.filter((a) => a.status === 'IN_FLIGHT' && !a.blocked);
-      if (running.length === 0 && unclassified.length === 0) return;
+      if (running.length === 0 && unclassified.length === 0) {
+        // A blocked statement whose blocker has released must complete before we decide, otherwise the
+        // runnable set would depend on how fast Postgres wakes it. A blocker still paused at its gate keeps
+        // the lock, so the probe stays non-empty and the actor stays not-runnable (no stall).
+        const blocked = all.filter((a) => a.status === 'IN_FLIGHT' && a.blocked);
+        if (blocked.length > 0 && (await this.reprobeBlocked(blocked))) continue;
+        return;
+      }
       if (running.length > 0 && Date.now() - this.lastChange > this.opts.stallTimeoutMs) {
         throw new StallError(running[0]!.id);
       }
@@ -196,6 +204,33 @@ export class Controller {
         await this.waitForChange(Math.min(100, this.opts.stallTimeoutMs));
       }
     }
+  }
+
+  /** True when at least one blocked statement is no longer blocked (it is now awaited like any in-flight one). */
+  private async reprobeBlocked(list: ActorState[]): Promise<boolean> {
+    const targets = list.filter((a) => a.inflight && typeof a.inflight.client.processID === 'number');
+    if (targets.length === 0) return false;
+    const pids = targets.map((a) => a.inflight!.client.processID as number);
+    const steps = targets.map((a) => a.inflight!.step);
+    let rows: { pid: number; b: number[] }[];
+    try {
+      rows = (await this.opts.control.query('SELECT pid, pg_blocking_pids(pid) AS b FROM unnest($1::int[]) AS pid', [pids])).rows;
+    } catch {
+      return false;
+    }
+    let changed = false;
+    for (let i = 0; i < targets.length; i++) {
+      const a = targets[i]!;
+      const inflight = a.inflight;
+      if (a.status !== 'IN_FLIGHT' || !inflight || inflight.step !== steps[i]) continue;
+      const row = rows.find((r) => r.pid === pids[i]);
+      if (!row || row.b.length === 0) {
+        a.blocked = false;
+        inflight.polls = 0;
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   private async pollBlocked(list: ActorState[]): Promise<void> {
@@ -230,26 +265,25 @@ export class Controller {
   }
 
   private choose(runnable: ActorState[]): ActorState {
-    const { schedule } = this.opts;
-    while (this.cursor < schedule.length) {
-      const want = this.actors.get(schedule[this.cursor]!);
-      if (!want) break;
-      if (want.status === 'DONE') {
-        this.warnings.push(`schedule entry ${this.cursor + 1} ("${want.id}") skipped: actor already finished`);
-        this.cursor++;
-        continue;
-      }
-      if (want.status === 'AT_GATE') {
-        this.cursor++;
-        this.lastPicked = want.id;
-        return want;
-      }
-      break; // blocked or still in flight: use the default policy, keep the entry
+    const ids = runnable.map((a) => a.id);
+    const d = decide(
+      {
+        index: this.decisions.length,
+        runnable: ids,
+        last: this.lastPicked,
+        status: (id) => {
+          const st = this.actors.get(id)?.status;
+          return st === 'DONE' ? 'DONE' : st === 'AT_GATE' ? 'AT_GATE' : 'OTHER';
+        },
+      },
+      this.opts.chooser,
+    );
+    if (d.diverged && !this.warnings.includes('nondeterministic scenario: a saved choice was not runnable, the run diverged from its schedule')) {
+      this.warnings.push('nondeterministic scenario: a saved choice was not runnable, the run diverged from its schedule');
     }
-    const cont = this.lastPicked ? runnable.find((a) => a.id === this.lastPicked) : undefined;
-    const pick = cont ?? runnable[0]!;
-    this.lastPicked = pick.id;
-    return pick;
+    this.decisions.push(d);
+    this.lastPicked = d.chosen;
+    return this.actors.get(d.chosen)!;
   }
 
   private release(st: ActorState): void {
