@@ -5,3 +5,4 @@
 - Phase 1 supports forced schedules only; no exploration yet.
 - Out of scope in v1: Prisma, `pg-native`, MySQL/SQLite/Mongo, multi-process apps, Redis locks, external side effects, parallel statements inside one actor, LISTEN/NOTIFY.
 - `.ts` scenarios need Node >= 22.18 (native type stripping); use `.mjs` otherwise.
+- Unix-socket DSNs must be written as `postgres:///db?host=/dir` or `postgres://user@%2Fdir/db`; `postgres://user@/db?host=...` is not parseable by WHATWG URL and is refused (safe direction).
