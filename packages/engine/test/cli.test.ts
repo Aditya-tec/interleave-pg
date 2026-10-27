@@ -41,10 +41,11 @@ describe('run', () => {
   it('works for knex through the CLI', () => {
     expect(runCli(['run', fx('lost-update-knex.mjs'), '--schedule', 'A,B,A,B']).code).toBe(1);
   });
-  it('exit 2 when --schedule is missing', () => {
+  it('Phase 2: without --schedule, run explores (it used to be a usage error in Phase 1)', () => {
     const r = runCli(['run', fx('lost-update-pool.mjs')]);
-    expect(r.code).toBe(2);
-    expect(r.err).toMatch(/--schedule/);
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/Coverage: explored \d+ schedules?/);
+    expect(r.err).not.toMatch(/--schedule/);
   });
   it('AC1.6: exit 2 with the zero-statement message', () => {
     const r = runCli(['run', fx('no-statements.mjs'), '--schedule', 'A,B']);
