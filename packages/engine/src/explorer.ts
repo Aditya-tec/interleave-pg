@@ -113,36 +113,7 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
   const timeBudgetMs = o.timeBudgetMs ?? DEFAULTS.timeBudgetMs;
   const confirmRuns = o.confirmRuns ?? DEFAULTS.confirmRuns;
   const useSerial = o.serialOracle ?? sopts.serialOracle ?? true;
-  const actors = session.actorIds;
-
-  // ---- serial reference (lazy, cached per actor subset) -------------------------------------------------
-  const reference = new Map<string, Set<string>>();
-  let serialRuns = 0;
-  const ensureReference = async (subset: string[]): Promise<void> => {
-    const key = subset.join(',');
-    if (reference.has(key)) return;
-    const keys = new Set<string>();
-    for (const order of permutations(subset)) {
-      const r = await session.execute({ chooser: serialChooser(order), only: subset, invariants: false, snapshot: true });
-      serialRuns++;
-      keys.add(outcomeKey(toOutcome(r), subset));
-    }
-    reference.set(key, keys);
-  };
-
-  const analyze = async (r: RunResult): Promise<Candidate[]> => {
-    const out: Candidate[] = r.violations.map((v) => ({ kind: 'VIOLATION' as const, invariant: v.invariant, detail: v.detail }));
-    if (useSerial && r.snapshotHash) {
-      const outcome = toOutcome(r);
-      const aborted = Object.keys(outcome.results).filter((a) => /^db:(40001|40P01)$/.test(outcome.results[a]!));
-      const remaining = Object.keys(outcome.results).filter((a) => !aborted.includes(a)).sort();
-      if (remaining.length > 0) await ensureReference(remaining);
-      if (!isSerializable(outcome, (subset) => reference.get(subset.join(',')) ?? new Set())) {
-        out.push({ kind: 'ANOMALY', invariant: 'serial-equivalence', detail: 'the outcome matches no serial execution of the actors' });
-      }
-    }
-    return out;
-  };
+  const { analyze, serialRuns } = createAnalyzer(session, useSerial);
 
   // ---- exploration -------------------------------------------------------------------------------------
   const found = new Map<string, Finding & { _hintsFrom: Step[] }>();
@@ -190,12 +161,12 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
     const runs = o.runs ?? DEFAULTS.runs;
     const seed = o.seed ?? DEFAULTS.seed;
     const s = await exploreRandom(exec, { runs, seed, timeBudgetMs: o.timeBudgetMs }, clock, onSchedule);
-    coverage = { explored: s.explored, preemptionBound: null, exhaustiveWithinBound: false, stoppedBy: s.stoppedBy, strategy: 'random', seed, runs, distinct: s.distinct, serialReferenceRuns: serialRuns };
+    coverage = { explored: s.explored, preemptionBound: null, exhaustiveWithinBound: false, stoppedBy: s.stoppedBy, strategy: 'random', seed, runs, distinct: s.distinct, serialReferenceRuns: serialRuns() };
   } else {
     const s = await exploreBounded(exec, { maxPreemptions, maxSchedules, timeBudgetMs }, clock, onSchedule);
-    coverage = { explored: s.explored, preemptionBound: maxPreemptions, exhaustiveWithinBound: s.exhaustive, stoppedBy: s.stoppedBy, strategy: 'dfs', serialReferenceRuns: serialRuns };
+    coverage = { explored: s.explored, preemptionBound: maxPreemptions, exhaustiveWithinBound: s.exhaustive, stoppedBy: s.stoppedBy, strategy: 'dfs', serialReferenceRuns: serialRuns() };
   }
-  coverage.serialReferenceRuns = serialRuns;
+  coverage.serialReferenceRuns = serialRuns();
   stats.abortCodes = [...aborts].sort();
 
   // ---- confirmation: replay each finding's exact schedule `confirmRuns` times ---------------------------
@@ -233,7 +204,6 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
     exitCode: 0,
   };
   report.exitCode = exitCodeFor(report);
-  void actors;
   return report;
 }
 
@@ -351,4 +321,65 @@ export function formatMatrix(rows: MatrixRow[]): string {
   out.push('');
   for (const r of rows) out.push(`${r.isolation}: ${coverageLine(r.report.coverage)}`);
   return out.join('\n');
+}
+
+/** Serial-equivalence + invariant analysis of one run. Serial reference outcomes are computed lazily and cached. */
+export function createAnalyzer(session: Session, useSerial: boolean) {
+  const reference = new Map<string, Set<string>>();
+  let serialRuns = 0;
+  const ensureReference = async (subset: string[]): Promise<void> => {
+    const key = subset.join(',');
+    if (reference.has(key)) return;
+    const keys = new Set<string>();
+    for (const order of permutations(subset)) {
+      const r = await session.execute({ chooser: serialChooser(order), only: subset, invariants: false, snapshot: true });
+      serialRuns++;
+      keys.add(outcomeKey(toOutcome(r), subset));
+    }
+    reference.set(key, keys);
+  };
+  const analyze = async (r: RunResult): Promise<Candidate[]> => {
+    const out: Candidate[] = r.violations.map((v) => ({ kind: 'VIOLATION' as const, invariant: v.invariant, detail: v.detail }));
+    if (useSerial && r.snapshotHash) {
+      const outcome = toOutcome(r);
+      const aborted = Object.keys(outcome.results).filter((a) => /^db:(40001|40P01)$/.test(outcome.results[a]!));
+      const remaining = Object.keys(outcome.results).filter((a) => !aborted.includes(a)).sort();
+      if (remaining.length > 0) await ensureReference(remaining);
+      if (!isSerializable(outcome, (subset) => reference.get(subset.join(',')) ?? new Set())) {
+        out.push({ kind: 'ANOMALY', invariant: 'serial-equivalence', detail: 'the outcome matches no serial execution of the actors' });
+      }
+    }
+    return out;
+  };
+  return { analyze, serialRuns: () => serialRuns };
+}
+
+export interface ReplayTarget {
+  schedule: string[];
+  kind: FindingKind;
+  invariant: string;
+  fingerprint: string;
+}
+export interface ReplayResult {
+  runs: number;
+  reproduced: number;
+  /** True when the statement sequence differs from the saved one (code changed, or a nondeterministic scenario). */
+  fingerprintDiffers: boolean;
+  diverged: boolean;
+}
+
+/** Re-run a saved schedule `runs` times and count how often the same finding shows up. */
+export async function replayFinding(session: Session, t: ReplayTarget, runs: number, serialOracle?: boolean): Promise<ReplayResult> {
+  const useSerial = serialOracle ?? session.scenario.options?.serialOracle ?? true;
+  const { analyze } = createAnalyzer(session, useSerial);
+  let reproduced = 0;
+  let fingerprintDiffers = false;
+  let diverged = false;
+  for (let i = 0; i < runs; i++) {
+    const r = await session.execute({ chooser: prefixChooser(t.schedule), snapshot: useSerial });
+    if (r.fingerprint !== t.fingerprint) fingerprintDiffers = true;
+    if (r.decisions.some((d) => d.diverged)) diverged = true;
+    if ((await analyze(r)).some((c) => c.kind === t.kind && c.invariant === t.invariant)) reproduced++;
+  }
+  return { runs, reproduced, fingerprintDiffers, diverged };
 }
