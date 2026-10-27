@@ -297,3 +297,25 @@ $ node dist/cli.js doctor
 [ok] deadlock_timeout is 50ms (init-db sets 50ms)
 [exit code: 0]
 ```
+
+## Summary
+
+| AC | Result | Evidence (above) |
+|---|---|---|
+| AC1.1 | PASS | 100/100 CLI invocations and 100/100 in-process runs violate under `A,B,A,B` |
+| AC1.2 | PASS | `A,A,B,B` exit 0, no violation |
+| AC1.3 | PASS | FOR UPDATE scenario finished in about 0.5 s, `[BLOCKED]` shown on step 4 |
+| AC1.4 | PASS | `40P01` outcome, process total about 0.55 s, test asserts under 2 s |
+| AC1.5 | PASS | Exit 3 for remote host, bad DB name, production, no DSN, missing marker, `--dsn`; S2 test with a spy. Caveat: the missing-marker case sends one read-only catalog probe, as documented |
+| AC1.6 | PASS | Exit 2 with the required message; real pg-copy mismatch test |
+| AC1.7 | PASS | pool.query, pool.connect + BEGIN/COMMIT, callback client, knex |
+
+Not verified: CI on GitHub (no remote exists), Linux/macOS, Node 20, `.ts` scenarios (Node here is 22.16), `npm audit` was run once locally (0 vulnerabilities) but is not part of this evidence block.
+
+## Demo for the Gate G1 GIF
+
+1. `docker compose up -d` (in `raceproof/`)
+2. `export RACEPROOF_DSN=postgres://postgres:<pw>@127.0.0.1:5433/postgres; node packages/engine/dist/cli.js init-db --name raceproof_demo`
+3. `export RACEPROOF_DSN=postgres://postgres:<pw>@127.0.0.1:5433/raceproof_demo`
+4. `node packages/engine/dist/cli.js run packages/engine/test/fixtures/lost-update-pool.mjs --schedule A,B,A,B` shows the violation (exit 1)
+5. Same command with `--schedule A,A,B,B` shows the clean serial run (exit 0)
