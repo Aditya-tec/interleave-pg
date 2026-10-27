@@ -231,7 +231,7 @@ DSN only from `--dsn` or `RACEPROOF_DSN` (never implicitly from `DATABASE_URL`).
 
 | # | Requirement | Test |
 |---|---|---|
-| S1 | **Target guard:** refuse unless host ∈ {localhost, 127.0.0.1, ::1, unix socket}, DB name matches `^raceproof_`, marker table `raceproof_marker` exists (created only by `init-db`), and `NODE_ENV != production` | Unit tests for each refusal ⇒ exit code 3 and **no query sent** |
+| S1 | **Target guard:** refuse unless host ∈ {localhost, 127.0.0.1, ::1, unix socket}, DB name matches `^raceproof_`, marker table `raceproof_marker` exists (created only by `init-db`), and `NODE_ENV != production` | Unit tests for each refusal ⇒ exit code 3 and **no query sent, except one read-only catalog probe for the marker-table check** |
 | S2 | Every hooked client's host/port/database must equal the allowed target, else `UnsafeTargetError` before sending | Test: app pool pointed at another DB ⇒ abort |
 | S3 | No network access, no telemetry | CI test running under a network-deny namespace/mock; grep for `http`, `fetch`, `net` usage in `src` |
 | S4 | HTML report escapes all dynamic text (SQL, params, data) | Test with `<script>` / `"onerror=` payloads in data |
@@ -302,7 +302,7 @@ AC:
 - AC1.2 Forced schedule `A,A,B,B` (serial) produces no violation.
 - AC1.3 A blocking scenario (`SELECT … FOR UPDATE`) completes without hanging; blocked state shown in timeline.
 - AC1.4 A deadlock scenario ends with a `40P01` outcome inside 2 s.
-- AC1.5 S1/S2 refusal tests all pass (exit 3, no query sent).
+- AC1.5 S1/S2 refusal tests all pass (exit 3; refusals send no query, except one read-only catalog probe for the marker check).
 - AC1.6 Zero-statement-intercepted failure message works.
 - AC1.7 Works via `pool.query`, `pool.connect()`+BEGIN/COMMIT, callback style, and knex.
 
