@@ -1,0 +1,9 @@
+{
+  "name": "raceproof-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "npm run build -w raceproof",
+    "test": "npm test -w raceproof"
+  }
+}
