@@ -471,3 +471,29 @@ exit 3
 | 4. GitHub repo and first CI run | See the session report | Not part of this local evidence |
 
 Not verified here: Linux, macOS, Node 20 (Linux CI is covered in the next section if it ran), the local folder is still named `raceproof/` because the OS refused to rename it while it is in use (not part of the repository).
+
+## 4. Commit email rewrite, GitHub push and first Linux CI
+
+Email rewrite (before the first push): the only commits carrying the old Gmail address were the first two; their author and committer email was rewritten to the GitHub noreply address with `git filter-branch --env-filter` (names unchanged). Backup refs were deleted, then `git reflog expire --expire=now --all && git gc --prune=now`.
+
+- Tip tree before and after: `08298c9dc3ec414c4efeb91f3e9db5bfd820a636` both, so file contents are unchanged.
+- The old tip commit is no longer in the repository; 0 objects, 0 refs, 0 tags, 0 notes, 0 reflog lines and 0 files under `.git` contain the old address.
+- Suite after the rewrite: 7 of 7 files, 82 of 82 tests (Windows).
+
+Push: `origin` = `https://github.com/Aditya-tec/interleave-pg.git`, branch `main`, accepted on the first try (no workflow-scope rejection). No token was written to any file or URL.
+
+First CI run on Linux (ubuntu-latest, Postgres 17 service container): https://github.com/Aditya-tec/interleave-pg/actions/runs/40500185576
+
+| Job | Result |
+|---|---|
+| test (20) | success |
+| test (22) | success |
+
+That run was green but not fully honest: `test/guard-network.test.ts` reported 1 skipped test (81 passed, 1 skipped) on both jobs. The default reporter hides which test it was, so I switched CI to the verbose reporter (run 40500505675, still green) which showed the skipped test was "hostile host (127.0.0.2, same port as the target): a counting listener accepts zero connections". Cause: the test cannot bind `127.0.0.2` on the target port when the Postgres service container publishes `5433` on all interfaces (the test skips itself on a bind error). Environment fixes, nothing loosened:
+
+1. CI service container now publishes `127.0.0.1:5433:5432` (matching `docker-compose.yml`) so `127.0.0.2:5433` is free to bind.
+2. On CI (`CI` env var set) that test now fails instead of skipping if it cannot bind, so the check can never silently disappear on Linux.
+
+Final run on Linux: https://github.com/Aditya-tec/interleave-pg/actions/runs/40500660524 — test (20): success, test (22): success, each with 7 of 7 files, 82 of 82 tests, 0 skipped. It ran all 14 `guard-hardening` tests and all 10 `guard-network` tests (counting listeners, counting proxy, environment fallbacks, custom streams), each shown as passed in the verbose log. `npm audit --omit=dev` also passed.
+
+Not verified: macOS, and the Windows-to-Linux difference of the host-binding test is only exercised on Linux CI and this Windows machine.
