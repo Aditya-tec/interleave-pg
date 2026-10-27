@@ -319,3 +319,155 @@ Not verified: CI on GitHub (no remote exists), Linux/macOS, Node 20, `.ts` scena
 3. `export RACEPROOF_DSN=postgres://postgres:<pw>@127.0.0.1:5433/raceproof_demo`
 4. `node packages/engine/dist/cli.js run packages/engine/test/fixtures/lost-update-pool.mjs --schedule A,B,A,B` shows the violation (exit 1)
 5. Same command with `--schedule A,A,B,B` shows the clean serial run (exit 0)
+
+---
+
+# Post-G1 changes
+
+Added after the Gate G1 review. Commands below were run after these changes, under the new names (`interleave-pg`, `INTERLEAVE_DSN`, database `interleave_test`). The sections above are the original Phase 1 evidence and keep the old working-name strings exactly as they were typed at the time.
+
+## Correction to AC1.5
+
+The Phase 1 summary marked AC1.5 PASS. That was too generous. What was proven then was only that **no query** was sent. It was **not** proven that nothing left the machine: S2 was checked inside `Client.prototype.query`, but a pool connects first, so an app pool aimed at a hostile host, port or database had already attempted a connection (a startup message carries the user and database name) before anything was refused. The hardening tests written at G1 showed this: 6 of 14 failed. AC1.5 is re-established below with tests that watch the network, not just the query log.
+
+## 1. Guard hardening (fix to the guard source only; tests stayed as written)
+
+- DSN parsing is now an allowlist: `host=` only as an absolute local socket directory, plus `application_name` and `connect_timeout`. Every other query parameter, duplicates, multi-host DSNs, a host set in two places and extra path segments raise `UnsafeTargetError` (exit 3). `sslmode` was dropped.
+- `Client.prototype.connect` is patched (promise and callback forms): the effective host/port/database (after `PGHOST`/`PGPORT`/`PGDATABASE` fallbacks) and the transport are checked before any socket opens. Clients with a custom stream/connection are refused. The query-time check stays as a second layer. The control connection runs the same assertion.
+
+#### Hardening, allowlist and network-proof tests (verbose)
+```
+$ npx vitest run test/guard.test.ts test/guard-hardening.test.ts test/guard-network.test.ts --reporter=verbose 2>&1 | grep -E '^ +(✓|×|↓)|Tests |Test Files'
+ ✓ test/guard-hardening.test.ts > S1 hardening: hostile DSNs are refused with nothing sent > refuses ?host= pointing at a remote host 3ms
+ ✓ test/guard-hardening.test.ts > S1 hardening: hostile DSNs are refused with nothing sent > refuses ?hostaddr= pointing at a remote IP 1ms
+ ✓ test/guard-hardening.test.ts > S1 hardening: hostile DSNs are refused with nothing sent > refuses multi-host DSN where one host is non-local 0ms
+ ✓ test/guard-hardening.test.ts > S1 hardening: hostile DSNs are refused with nothing sent > refuses multi-host DSN, non-local host first 0ms
+ ✓ test/guard-hardening.test.ts > S1 hardening: hostile DSNs are refused with nothing sent > refuses ?dbname= not matching the prefix (path is empty) 0ms
+ ✓ test/guard-hardening.test.ts > S1 hardening: hostile DSNs are refused with nothing sent > refuses ?dbname= not matching the prefix (path looks fine) 0ms
+ ✓ test/guard-hardening.test.ts > S1 hardening through the CLI (exit 3) > exit 3 for ?host= pointing at a remote host 487ms
+ ✓ test/guard-hardening.test.ts > S1 hardening through the CLI (exit 3) > exit 3 for ?hostaddr= pointing at a remote IP 456ms
+ ✓ test/guard-hardening.test.ts > S1 hardening through the CLI (exit 3) > exit 3 for multi-host DSN where one host is non-local 511ms
+ ✓ test/guard-hardening.test.ts > S1 hardening through the CLI (exit 3) > exit 3 for multi-host DSN, non-local host first 600ms
+ ✓ test/guard-hardening.test.ts > S1 hardening through the CLI (exit 3) > exit 3 for ?dbname= not matching the prefix (path is empty) 637ms
+ ✓ test/guard-hardening.test.ts > S1 hardening through the CLI (exit 3) > exit 3 for ?dbname= not matching the prefix (path looks fine) 553ms
+ ✓ test/guard-hardening.test.ts > S2 blocks a pool created with such a DSN > ?host=evil.example.com: client host differs from the target, refused before any query 42ms
+ ✓ test/guard-hardening.test.ts > S2 blocks a pool created with such a DSN > ?port= override: client port differs from the target, refused before any query 33ms
+ ✓ test/guard-network.test.ts > nothing leaves the machine: hostile host and port > hostile port on loopback: a counting listener accepts zero connections 44ms
+ ✓ test/guard-network.test.ts > nothing leaves the machine: hostile host and port > hostile host (127.0.0.2, same port as the target): a counting listener accepts zero connections 27ms
+ ✓ test/guard-network.test.ts > nothing leaves the machine: hostile host and port > control: the same listener does see a connection when nothing refuses it (the method observes traffic) 68ms
+ ✓ test/guard-network.test.ts > nothing leaves the machine: a different database on the same local Postgres > the server side (a counting proxy) never receives a StartupMessage for that database 142ms
+ ✓ test/guard-network.test.ts > nothing leaves the machine: a different database on the same local Postgres > control: the proxy does record a direct connection to another database 14ms
+ ✓ test/guard-network.test.ts > effective settings (PGHOST / PGPORT / PGDATABASE fallbacks), not the DSN string > pool without host/port, PGHOST/PGPORT point at a hostile listener: refused, zero connections 35ms
+ ✓ test/guard-network.test.ts > effective settings (PGHOST / PGPORT / PGDATABASE fallbacks), not the DSN string > pool without a database, PGDATABASE points at another database: refused, proxy never sees it 136ms
+ ✓ test/guard-network.test.ts > custom stream option > Pool with a stream factory is refused 25ms
+ ✓ test/guard-network.test.ts > custom stream option > Client with a net.Socket subclass is refused 25ms
+ ✓ test/guard-network.test.ts > custom stream option > Client with a net.Socket whose connect was replaced on the instance is refused 25ms
+ ✓ test/guard.test.ts > S1 target guard > refuses remote host and sends no query 3ms
+ ✓ test/guard.test.ts > S1 target guard > refuses remote IP and sends no query 0ms
+ ✓ test/guard.test.ts > S1 target guard > refuses db name without prefix and sends no query 0ms
+ ✓ test/guard.test.ts > S1 target guard > refuses db name prefix not anchored and sends no query 0ms
+ ✓ test/guard.test.ts > S1 target guard > refuses no db name and sends no query 1ms
+ ✓ test/guard.test.ts > S1 target guard > refuses unparseable and sends no query 0ms
+ ✓ test/guard.test.ts > S1 target guard > refuses production env and sends no query 0ms
+ ✓ test/guard.test.ts > S1 target guard > refuses a missing marker table (only the catalog probe is sent) 0ms
+ ✓ test/guard.test.ts > S1 target guard > refuses when no DSN is given 1ms
+ ✓ test/guard.test.ts > S1 target guard > accepts loopback hosts and a unix socket 1ms
+ ✓ test/guard.test.ts > S2 client check > accepts matching client (loopback aliases equal) 1ms
+ ✓ test/guard.test.ts > S2 client check > rejects other db, port, or host 0ms
+ ✓ test/guard.test.ts > redactDsn > hides passwords 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?sslmode=require 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?port=5999 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?service=prod 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?options=-c%20search_path%3Dx 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?host=relative/dir 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?host=/var/run/postgresql 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres:///interleave_a?host=/a,/b 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?application_name=a&application_name=b 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a?connect_timeout=abc 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses postgres://u@localhost/interleave_a/extra 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > refuses host=localhost dbname=interleave_a 0ms
+ ✓ test/guard.test.ts > parseDsn allowlist > accepts the allowlisted parameters 0ms
+ Test Files  3 passed (3)
+      Tests  49 passed (49)
+[exit code: 0]
+```
+
+## 2. Rename to interleave-pg
+
+#### No old-name strings left (exceptions: this report, COMPETITORS.md naming third-party projects, one historical note in DECISIONS.md)
+```
+$ cd ../.. && git ls-files | grep -i raceproof || echo '(no file names)'; git grep -ic raceproof; echo '--- excluding the 3 documented files:'; git grep -il raceproof -- . ':!docs/phase-1-report.md' ':!docs/COMPETITORS.md' ':!docs/DECISIONS.md' || echo '(none)'
+(no file names)
+docs/COMPETITORS.md:10
+docs/DECISIONS.md:1
+docs/phase-1-report.md:20
+--- excluding the 3 documented files:
+(none)
+
+## 3. Full suite and AC1.1 after the rename and the hardening
+
+#### Build
+```
+$ npx tsc -p tsconfig.build.json && echo build ok
+build ok
+[exit code: 0]
+```
+
+#### Full suite
+```
+$ npx vitest run 2>&1 | grep -E '^ +(×|↓)|Tests |Test Files'
+ Test Files  7 passed (7)
+      Tests  82 passed (82)
+[exit code: 0]
+```
+
+#### AC1.1: 100 CLI invocations of A,B,A,B (fresh process each)
+```
+$ ok=0; for i in $(seq 1 100); do out=$(node dist/cli.js run test/fixtures/lost-update-pool.mjs --schedule A,B,A,B 2>&1); c=$?; if [ $c -eq 1 ] && echo "$out" | grep -q "VIOLATION: both deposits applied"; then ok=$((ok+1)); fi; done; echo "violation reproduced in $ok/100 runs"
+violation reproduced in 100/100 runs
+[exit code: 0]
+```
+
+#### AC1.1: 100 in-process runs
+```
+$ npx vitest run test/runner.test.ts -t 'AC1.1: forced' --reporter=verbose 2>&1 | grep -E '^ +(✓|×)|Tests '
+ ✓ test/runner.test.ts > AC1.1/AC1.2/AC1.7 lost update across driver styles > AC1.1: forced A,B,A,B violates 100/100 repeated runs 1042ms
+      Tests  1 passed | 11 skipped (12)
+[exit code: 0]
+```
+
+#### AC1.2: serial schedule
+```
+$ node dist/cli.js run test/fixtures/lost-update-pool.mjs --schedule A,A,B,B | tail -4
+  B: fulfilled
+
+No violations found in 1 schedule (forced schedule A,A,B,B; exhaustive within bound: no)
+Coverage: explored 1 schedule (forced), preemption bound: n/a, exhaustive within bound: no, stopped by: forced-schedule
+[exit code: 0]
+```
+
+#### AC1.5 via the CLI with the new names (remote host, hostaddr, dbname, production)
+```
+$ INTERLEAVE_DSN=postgres://u:topsecret@db.example.com:5432/interleave_dev node dist/cli.js run test/fixtures/lost-update-pool.mjs --schedule A,A,B,B; echo "exit $?"; INTERLEAVE_DSN='postgres://postgres:x@localhost:5433/interleave_test?hostaddr=10.0.0.5' node dist/cli.js doctor; echo "exit $?"; INTERLEAVE_DSN='postgres://postgres:x@localhost:5433/interleave_test?dbname=production' node dist/cli.js doctor; echo "exit $?"; NODE_ENV=production node dist/cli.js doctor; echo "exit $?"
+refusing target: host "db.example.com" is not local (allowed: localhost, 127.0.0.1, ::1, unix socket)
+exit 3
+refusing target: query parameter "hostaddr" is not allowed (allowed: host=<socket dir>, application_name, connect_timeout)
+exit 3
+refusing target: query parameter "dbname" is not allowed (allowed: host=<socket dir>, application_name, connect_timeout)
+exit 3
+refusing target: NODE_ENV is production
+exit 3
+[exit code: 0]
+```
+
+## Summary of post-G1 changes
+
+| Item | Result | Evidence |
+|---|---|---|
+| 1. Guard hardening tests written first | Done. Before the fix, 14 of 24 relevant tests failed (6 hardening tests, 8 network-proof tests), proving the gap: `?hostaddr=` and `?dbname=` with a valid path were accepted, and a hostile pool had already attempted a connection | Fix to guard source only; section 1 shows 49 of 49 passing |
+| 2. Rename to interleave-pg | Done in one commit. Guard regex and its tests changed together (`^interleave_`), nothing loosened | Section 2: no file name and no file outside the 3 documented ones contains the old name |
+| 3. Full suite on Windows | PASS | 82 of 82 tests, 7 of 7 files, 0 skipped; AC1.1 100/100 via CLI and in-process |
+| AC1.5 | Re-established, now stronger than before | Counting listener: 0 connections; counting proxy: no StartupMessage for another database; effective-env and custom-stream cases refused |
+| 4. GitHub repo and first CI run | See the session report | Not part of this local evidence |
+
+Not verified here: Linux, macOS, Node 20 (Linux CI is covered in the next section if it ran), the local folder is still named `raceproof/` because the OS refused to rename it while it is in use (not part of the repository).
