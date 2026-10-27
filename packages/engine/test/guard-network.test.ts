@@ -59,7 +59,7 @@ describe('nothing leaves the machine: hostile host and port', () => {
     try {
       hostile = await countingListener('127.0.0.2', targetPort);
     } catch (e: any) {
-      if (e.code === 'EADDRNOTAVAIL' || e.code === 'EADDRINUSE') return ctx.skip(`cannot bind 127.0.0.2:${targetPort} here (${e.code})`);
+      if (!process.env.CI && (e.code === 'EADDRNOTAVAIL' || e.code === 'EADDRINUSE')) return ctx.skip(`cannot bind 127.0.0.2:${targetPort} here (${e.code})`);
       throw e;
     }
     closers.push(hostile.close);
