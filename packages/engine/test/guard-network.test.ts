@@ -89,7 +89,7 @@ describe('nothing leaves the machine: a different database on the same local Pos
     await new Promise((r) => setTimeout(r, 100));
     expect(proxy.startupDatabases()).not.toContain('postgres');
     // the proxy does see legitimate traffic: the guard and the control connection asked for the target database
-    expect(proxy.startupDatabases()).toContain('raceproof_test');
+    expect(proxy.startupDatabases()).toContain('interleave_test');
   });
   it('control: the proxy does record a direct connection to another database', async () => {
     const a = parseDsn(adminDsn());
@@ -110,7 +110,7 @@ describe('effective settings (PGHOST / PGPORT / PGDATABASE fallbacks), not the D
   it('pool without host/port, PGHOST/PGPORT point at a hostile listener: refused, zero connections', async () => {
     const hostile = await countingListener('127.0.0.1');
     closers.push(hostile.close);
-    setEnv({ PGHOST: '127.0.0.1', PGPORT: String(hostile.port), PGDATABASE: 'raceproof_test' });
+    setEnv({ PGHOST: '127.0.0.1', PGPORT: String(hostile.port), PGDATABASE: 'interleave_test' });
     await expectRefused(scenarioWith(() => new pg.Pool({ user: 'postgres', password: 'x', max: 2 })), dsn);
     expect(hostile.connections()).toBe(0);
   });
@@ -121,7 +121,7 @@ describe('effective settings (PGHOST / PGPORT / PGDATABASE fallbacks), not the D
     const viaProxy = withHostPort(dsn, '127.0.0.1', proxy.port);
     setEnv({ PGDATABASE: 'postgres' });
     await expectRefused(
-      scenarioWith(() => new pg.Pool({ host: '127.0.0.1', port: proxy.port, user: 'postgres', password: 'raceproof', max: 2 })),
+      scenarioWith(() => new pg.Pool({ host: '127.0.0.1', port: proxy.port, user: 'postgres', password: 'interleave-pg', max: 2 })),
       viaProxy,
     );
     await new Promise((r) => setTimeout(r, 100));

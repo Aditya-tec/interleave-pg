@@ -1,7 +1,7 @@
 import { checkTargetStatic, parseDsn, UnsafeTargetError, redactDsn } from './guard.js';
 import { connectUnhooked, loadPg } from './pg-load.js';
 
-const NAME_RE = /^raceproof_[a-z0-9_]{1,50}$/;
+const NAME_RE = /^interleave_[a-z0-9_]{1,50}$/;
 const quote = (id: string) => '"' + id.replace(/"/g, '""') + '"';
 
 export interface InitDbOptions {
@@ -14,10 +14,10 @@ export interface InitDbOptions {
 
 /** Creates the throwaway database, its marker table and a low deadlock_timeout. Returns the new DSN. */
 export async function initDb(opts: InitDbOptions): Promise<string> {
-  if (!opts.name.startsWith('raceproof_')) {
-    throw new UnsafeTargetError(`refusing: database name "${opts.name}" must start with raceproof_`);
+  if (!opts.name.startsWith('interleave_')) {
+    throw new UnsafeTargetError(`refusing: database name "${opts.name}" must start with interleave_`);
   }
-  if (!NAME_RE.test(opts.name)) throw new Error(`invalid database name "${opts.name}" (allowed: raceproof_[a-z0-9_]+)`);
+  if (!NAME_RE.test(opts.name)) throw new Error(`invalid database name "${opts.name}" (allowed: interleave_[a-z0-9_]+)`);
   const admin = parseDsn(opts.adminDsn);
   checkTargetStatic({ ...admin, database: opts.name }, process.env);
   const pg = loadPg(opts.fromDir ?? process.cwd());
@@ -39,8 +39,8 @@ export async function initDb(opts: InitDbOptions): Promise<string> {
 
   const c = await connectUnhooked(pg, { ...admin, database: opts.name });
   try {
-    await c.query('CREATE TABLE IF NOT EXISTS raceproof_marker (created_by text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())');
-    await c.query(`INSERT INTO raceproof_marker (created_by) SELECT 'raceproof init-db' WHERE NOT EXISTS (SELECT 1 FROM raceproof_marker)`);
+    await c.query('CREATE TABLE IF NOT EXISTS interleave_marker (created_by text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())');
+    await c.query(`INSERT INTO interleave_marker (created_by) SELECT 'interleave-pg init-db' WHERE NOT EXISTS (SELECT 1 FROM interleave_marker)`);
   } finally {
     await c.end();
   }

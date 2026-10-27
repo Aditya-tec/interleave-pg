@@ -1,9 +1,9 @@
 {
-  "name": "raceproof-monorepo",
+  "name": "interleave-pg-monorepo",
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "build": "npm run build -w raceproof",
-    "test": "npm test -w raceproof"
+    "build": "npm run build -w interleave-pg",
+    "test": "npm test -w interleave-pg"
   }
 }

@@ -13,14 +13,14 @@ function fakeConnect(queries: Q, markerExists = true) {
   };
   return { connect, count: () => connects };
 }
-const GOOD = 'postgres://postgres:pw@127.0.0.1:5433/raceproof_dev';
+const GOOD = 'postgres://postgres:pw@127.0.0.1:5433/interleave_dev';
 
 describe('S1 target guard', () => {
   const bad: [string, string, Record<string, string | undefined>?][] = [
-    ['remote host', 'postgres://u:p@db.example.com:5432/raceproof_dev'],
-    ['remote IP', 'postgres://u:p@10.0.0.5:5432/raceproof_dev'],
+    ['remote host', 'postgres://u:p@db.example.com:5432/interleave_dev'],
+    ['remote IP', 'postgres://u:p@10.0.0.5:5432/interleave_dev'],
     ['db name without prefix', 'postgres://u:p@localhost:5433/production'],
-    ['db name prefix not anchored', 'postgres://u:p@localhost:5433/my_raceproof_x'],
+    ['db name prefix not anchored', 'postgres://u:p@localhost:5433/my_interleave_x'],
     ['no db name', 'postgres://u:p@localhost:5433'],
     ['unparseable', 'not a dsn'],
     ['production env', GOOD, { NODE_ENV: 'production' }],
@@ -39,15 +39,15 @@ describe('S1 target guard', () => {
     const f = fakeConnect(queries, false);
     await expect(assertSafeTarget(GOOD, { env: {}, connect: f.connect })).rejects.toBeInstanceOf(UnsafeTargetError);
     expect(queries.length).toBe(1);
-    expect(queries[0]!.sql).toMatch(/^SELECT .*raceproof_marker/i);
+    expect(queries[0]!.sql).toMatch(/^SELECT .*interleave_marker/i);
   });
   it('refuses when no DSN is given', async () => {
     await expect(assertSafeTarget(undefined, { env: {}, connect: fakeConnect([]).connect })).rejects.toBeInstanceOf(UnsafeTargetError);
   });
   it('accepts loopback hosts and a unix socket', async () => {
-    for (const dsn of [GOOD, 'postgres://u@localhost/raceproof_a', 'postgres://u@[::1]:5433/raceproof_a', 'postgres:///raceproof_a?host=/var/run/postgresql', 'postgres://u@%2Fvar%2Frun%2Fpostgresql/raceproof_a']) {
+    for (const dsn of [GOOD, 'postgres://u@localhost/interleave_a', 'postgres://u@[::1]:5433/interleave_a', 'postgres:///interleave_a?host=/var/run/postgresql', 'postgres://u@%2Fvar%2Frun%2Fpostgresql/interleave_a']) {
       const t = await assertSafeTarget(dsn, { env: {}, connect: fakeConnect([]).connect });
-      expect(t.database).toMatch(/^raceproof_/);
+      expect(t.database).toMatch(/^interleave_/);
     }
   });
 });
@@ -55,12 +55,12 @@ describe('S1 target guard', () => {
 describe('S2 client check', () => {
   const target = parseDsn(GOOD);
   it('accepts matching client (loopback aliases equal)', () => {
-    expect(() => checkClientParams(target, { host: 'localhost', port: 5433, database: 'raceproof_dev' })).not.toThrow();
+    expect(() => checkClientParams(target, { host: 'localhost', port: 5433, database: 'interleave_dev' })).not.toThrow();
   });
   it('rejects other db, port, or host', () => {
     expect(() => checkClientParams(target, { host: '127.0.0.1', port: 5433, database: 'other' })).toThrow(UnsafeTargetError);
-    expect(() => checkClientParams(target, { host: '127.0.0.1', port: 5432, database: 'raceproof_dev' })).toThrow(UnsafeTargetError);
-    expect(() => checkClientParams(target, { host: 'db.example.com', port: 5433, database: 'raceproof_dev' })).toThrow(UnsafeTargetError);
+    expect(() => checkClientParams(target, { host: '127.0.0.1', port: 5432, database: 'interleave_dev' })).toThrow(UnsafeTargetError);
+    expect(() => checkClientParams(target, { host: 'db.example.com', port: 5433, database: 'interleave_dev' })).toThrow(UnsafeTargetError);
   });
 });
 
@@ -73,17 +73,17 @@ describe('redactDsn', () => {
 
 describe('parseDsn allowlist', () => {
   const refuse = [
-    'postgres://u@localhost/raceproof_a?sslmode=require',
-    'postgres://u@localhost/raceproof_a?port=5999',
-    'postgres://u@localhost/raceproof_a?service=prod',
-    'postgres://u@localhost/raceproof_a?options=-c%20search_path%3Dx',
-    'postgres://u@localhost/raceproof_a?host=relative/dir',
-    'postgres://u@localhost/raceproof_a?host=/var/run/postgresql',
-    'postgres:///raceproof_a?host=/a,/b',
-    'postgres://u@localhost/raceproof_a?application_name=a&application_name=b',
-    'postgres://u@localhost/raceproof_a?connect_timeout=abc',
-    'postgres://u@localhost/raceproof_a/extra',
-    'host=localhost dbname=raceproof_a',
+    'postgres://u@localhost/interleave_a?sslmode=require',
+    'postgres://u@localhost/interleave_a?port=5999',
+    'postgres://u@localhost/interleave_a?service=prod',
+    'postgres://u@localhost/interleave_a?options=-c%20search_path%3Dx',
+    'postgres://u@localhost/interleave_a?host=relative/dir',
+    'postgres://u@localhost/interleave_a?host=/var/run/postgresql',
+    'postgres:///interleave_a?host=/a,/b',
+    'postgres://u@localhost/interleave_a?application_name=a&application_name=b',
+    'postgres://u@localhost/interleave_a?connect_timeout=abc',
+    'postgres://u@localhost/interleave_a/extra',
+    'host=localhost dbname=interleave_a',
   ];
   for (const dsn of refuse) {
     it(`refuses ${dsn}`, () => {
@@ -91,7 +91,7 @@ describe('parseDsn allowlist', () => {
     });
   }
   it('accepts the allowlisted parameters', () => {
-    expect(parseDsn('postgres://u@localhost:5433/raceproof_a?application_name=x&connect_timeout=5').database).toBe('raceproof_a');
-    expect(parseDsn('postgres:///raceproof_a?host=/var/run/postgresql').host).toBe('/var/run/postgresql');
+    expect(parseDsn('postgres://u@localhost:5433/interleave_a?application_name=x&connect_timeout=5').database).toBe('interleave_a');
+    expect(parseDsn('postgres:///interleave_a?host=/var/run/postgresql').host).toBe('/var/run/postgresql');
   });
 });

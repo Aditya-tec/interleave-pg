@@ -1,4 +1,4 @@
-/** Safety guard: raceproof only ever talks to a local throwaway database (S1/S2). */
+/** Safety guard: interleave-pg only ever talks to a local throwaway database (S1/S2). */
 
 export class UnsafeTargetError extends Error {
   constructor(message: string) {
@@ -21,7 +21,7 @@ export interface Conn {
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1']);
-const DB_PATTERN = /^raceproof_/;
+const DB_PATTERN = /^interleave_/;
 
 export function redactDsn(dsn: string): string {
   return dsn.replace(/^([a-z]+:\/\/[^:/@\s]*):[^@/\s]*@/i, '$1:***@');
@@ -102,14 +102,14 @@ export interface GuardDeps {
  * catalog probe for the marker table that only `init-db` creates.
  */
 export async function assertSafeTarget(dsn: string | undefined, deps: GuardDeps): Promise<Target> {
-  if (!dsn) throw new UnsafeTargetError('refusing target: no DSN. Set RACEPROOF_DSN or pass --dsn');
+  if (!dsn) throw new UnsafeTargetError('refusing target: no DSN. Set INTERLEAVE_DSN or pass --dsn');
   const target = parseDsn(dsn);
   checkTargetStatic(target, deps.env ?? process.env);
   const conn = await deps.connect(target);
   try {
-    const r = await conn.query(`SELECT to_regclass('public.raceproof_marker') IS NOT NULL AS raceproof_marker_ok`);
+    const r = await conn.query(`SELECT to_regclass('public.interleave_marker') IS NOT NULL AS interleave_marker_ok`);
     if (!r.rows[0] || Object.values(r.rows[0])[0] !== true) {
-      throw new UnsafeTargetError('refusing target: marker table raceproof_marker not found. Create the database with `raceproof init-db`');
+      throw new UnsafeTargetError('refusing target: marker table interleave_marker not found. Create the database with `interleave-pg init-db`');
     }
   } finally {
     await conn.end().catch(() => {});

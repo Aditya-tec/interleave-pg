@@ -16,8 +16,8 @@ export interface HookState {
   untracked: number;
 }
 
-const SEEN = Symbol('raceproof.seen');
-const PREPARED = Symbol('raceproof.prepared');
+const SEEN = Symbol('interleave-pg.seen');
+const PREPARED = Symbol('interleave-pg.prepared');
 
 export function newHookState(target: Target): HookState {
   return { target, controller: null, unsafe: null, clients: new Set(), warnings: new Set(), untracked: 0 };

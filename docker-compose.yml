@@ -1,11 +1,12 @@
-# Local throwaway Postgres for raceproof. Never point raceproof at anything else.
+name: interleave-pg
+# Local throwaway Postgres for interleave-pg. Never point interleave-pg at anything else.
 services:
   postgres:
     image: postgres:17
     ports:
       - "127.0.0.1:5433:5432"
     environment:
-      POSTGRES_PASSWORD: raceproof
+      POSTGRES_PASSWORD: interleave-pg
       POSTGRES_DB: postgres
     tmpfs:
       - /var/lib/postgresql/data

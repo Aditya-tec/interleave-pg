@@ -8,14 +8,14 @@ import { loadScenario } from './loader.js';
 import { formatRun } from './reporter.js';
 import { createSession } from './runner.js';
 
-const USAGE = `raceproof - force concurrent Postgres statements through chosen interleavings (local throwaway DB only)
+const USAGE = `interleave-pg - force concurrent Postgres statements through chosen interleavings (local throwaway DB only)
 
 Usage:
-  raceproof init-db [--name raceproof_dev] [--compose]
-  raceproof run <scenario.mjs> --schedule A,B,A,B
-  raceproof doctor
+  interleave-pg init-db [--name interleave_dev] [--compose]
+  interleave-pg run <scenario.mjs> --schedule A,B,A,B
+  interleave-pg doctor
 
-The target database comes only from --dsn or RACEPROOF_DSN (never DATABASE_URL).
+The target database comes only from --dsn or INTERLEAVE_DSN (never DATABASE_URL).
 Exit codes: 0 no violations in the explored schedule, 1 violation, 2 tool/scenario error, 3 unsafe target refused.
 `;
 
@@ -25,7 +25,7 @@ const COMPOSE = `services:
     ports:
       - "127.0.0.1:5433:5432"
     environment:
-      POSTGRES_PASSWORD: raceproof
+      POSTGRES_PASSWORD: interleave-pg
       POSTGRES_DB: postgres
     tmpfs:
       - /var/lib/postgresql/data
@@ -48,16 +48,16 @@ async function main(argv: string[]): Promise<number> {
       out(COMPOSE);
       return 0;
     }
-    const dsn = values.dsn ?? process.env.RACEPROOF_DSN;
-    if (!dsn) throw new UnsafeTargetError('refusing: no DSN. Set RACEPROOF_DSN (a maintenance database on the local server) or pass --dsn');
-    const target = await initDb({ adminDsn: dsn, name: values.name ?? 'raceproof_dev' });
+    const dsn = values.dsn ?? process.env.INTERLEAVE_DSN;
+    if (!dsn) throw new UnsafeTargetError('refusing: no DSN. Set INTERLEAVE_DSN (a maintenance database on the local server) or pass --dsn');
+    const target = await initDb({ adminDsn: dsn, name: values.name ?? 'interleave_dev' });
     out(`database ready: ${redactDsn(target)}`);
     return 0;
   }
 
   if (cmd === 'doctor') {
     const { values } = parseArgs({ args: rest, options: { ...common } });
-    const r = await doctor(values.dsn ?? process.env.RACEPROOF_DSN, process.cwd());
+    const r = await doctor(values.dsn ?? process.env.INTERLEAVE_DSN, process.cwd());
     out(r.lines.join('\n'));
     return r.ok ? 0 : 2;
   }
@@ -65,14 +65,14 @@ async function main(argv: string[]): Promise<number> {
   if (cmd === 'run') {
     const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { ...common, schedule: { type: 'string' } } });
     const file = positionals[0];
-    if (!file) throw new ScenarioError('usage: raceproof run <scenario> --schedule A,B,A,B');
+    if (!file) throw new ScenarioError('usage: interleave-pg run <scenario> --schedule A,B,A,B');
     if (!values.schedule) {
       throw new ScenarioError('--schedule is required (e.g. --schedule A,B,A,B). Automatic exploration is not available yet.');
     }
     const schedule = values.schedule.split(',').map((s) => s.trim()).filter(Boolean);
     const { scenario, dir } = await loadScenario(file);
     const session = await createSession(scenario, {
-      dsn: (values.dsn ?? process.env.RACEPROOF_DSN) as string,
+      dsn: (values.dsn ?? process.env.INTERLEAVE_DSN) as string,
       scenarioDir: dir,
     });
     try {

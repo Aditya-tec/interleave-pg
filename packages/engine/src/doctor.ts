@@ -20,7 +20,7 @@ export async function doctor(dsn: string | undefined, fromDir: string): Promise<
 
   // Throws UnsafeTargetError for an unsafe target: surfaced as exit code 3 by the CLI.
   const target = await assertSafeTarget(dsn, { connect: (t) => connectUnhooked(pg, t) });
-  add(true, `target ${target.host}:${target.port}/${target.database} is local and has the raceproof marker table`);
+  add(true, `target ${target.host}:${target.port}/${target.database} is local and has the interleave-pg marker table`);
   const c = await connectUnhooked(pg, target);
   try {
     const v = (await c.query('SHOW server_version')).rows[0].server_version as string;

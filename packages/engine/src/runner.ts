@@ -41,7 +41,7 @@ export interface Session {
 
 const quoteIdent = (id: string) => '"' + id.replace(/"/g, '""') + '"';
 const quoteTable = (t: string) => t.split('.').map(quoteIdent).join('.');
-const ADVISORY_KEY = `hashtext('raceproof')`;
+const ADVISORY_KEY = `hashtext('interleave-pg')`;
 
 export async function createSession(input: ScenarioDefinition, opts: SessionOptions): Promise<Session> {
   const scenario = validateScenario(input);
@@ -81,13 +81,13 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
   };
 
   try {
-    // Edge case 17: one raceproof run per database at a time.
+    // Edge case 17: one interleave-pg run per database at a time.
     let locked = false;
     for (let i = 0; i < 20 && !locked; i++) {
       locked = (await control.query(`SELECT pg_try_advisory_lock(${ADVISORY_KEY}) AS l`)).rows[0].l === true;
       if (!locked) await new Promise((r) => setTimeout(r, 50));
     }
-    if (!locked) throw new ScenarioError(`another raceproof run is using ${redactDsn(opts.dsn)}`);
+    if (!locked) throw new ScenarioError(`another interleave-pg run is using ${redactDsn(opts.dsn)}`);
 
     hook = installHook(pg, state);
     if (scenario.schema) {

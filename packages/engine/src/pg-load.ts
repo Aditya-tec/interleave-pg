@@ -3,7 +3,7 @@ import net from 'node:net';
 import { join } from 'node:path';
 import { assertClientEndpoint, isLocalHost, UnsafeTargetError } from './guard.js';
 
-export const BYPASS = Symbol.for('raceproof.bypass');
+export const BYPASS = Symbol.for('interleave-pg.bypass');
 
 export type PgModule = any;
 

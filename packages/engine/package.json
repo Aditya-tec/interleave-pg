@@ -1,5 +1,5 @@
 {
-  "name": "raceproof",
+  "name": "interleave-pg",
   "version": "0.0.0",
   "description": "Find, reproduce and prove-fixed concurrency bugs in Node.js + Postgres code by forcing statement interleavings against a local test database.",
   "license": "MIT",
@@ -10,7 +10,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "raceproof": "dist/cli.js"
+    "interleave-pg": "dist/cli.js"
   },
   "files": [
     "dist"

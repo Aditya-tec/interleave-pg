@@ -12,12 +12,12 @@ const pkg = join(here, '..');
 
 // Each of these must be refused: exit 3 and no query sent.
 const HOSTILE: [string, string][] = [
-  ['?host= pointing at a remote host', 'postgres://u@localhost/raceproof_a?host=evil.example.com'],
-  ['?hostaddr= pointing at a remote IP', 'postgres://u@localhost/raceproof_a?hostaddr=10.0.0.5'],
-  ['multi-host DSN where one host is non-local', 'postgres://u@localhost:5433,evil.example.com:5433/raceproof_a'],
-  ['multi-host DSN, non-local host first', 'postgres://u@evil.example.com:5433,localhost:5433/raceproof_a'],
+  ['?host= pointing at a remote host', 'postgres://u@localhost/interleave_a?host=evil.example.com'],
+  ['?hostaddr= pointing at a remote IP', 'postgres://u@localhost/interleave_a?hostaddr=10.0.0.5'],
+  ['multi-host DSN where one host is non-local', 'postgres://u@localhost:5433,evil.example.com:5433/interleave_a'],
+  ['multi-host DSN, non-local host first', 'postgres://u@evil.example.com:5433,localhost:5433/interleave_a'],
   ['?dbname= not matching the prefix (path is empty)', 'postgres://u@localhost/?dbname=production'],
-  ['?dbname= not matching the prefix (path looks fine)', 'postgres://u@localhost/raceproof_a?dbname=production'],
+  ['?dbname= not matching the prefix (path looks fine)', 'postgres://u@localhost/interleave_a?dbname=production'],
 ];
 
 describe('S1 hardening: hostile DSNs are refused with nothing sent', () => {
@@ -41,7 +41,7 @@ describe('S1 hardening through the CLI (exit 3)', () => {
   for (const [name, dsn] of HOSTILE) {
     it(`exit 3 for ${name}`, () => {
       const r = spawnSync(process.execPath, [join(pkg, 'dist', 'cli.js'), 'doctor'], {
-        encoding: 'utf8', cwd: pkg, env: { ...process.env, RACEPROOF_DSN: dsn, NODE_ENV: 'test' },
+        encoding: 'utf8', cwd: pkg, env: { ...process.env, INTERLEAVE_DSN: dsn, NODE_ENV: 'test' },
       });
       expect(r.status).toBe(3);
     });

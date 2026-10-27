@@ -116,7 +116,7 @@ describe('S2 client target check', () => {
       return original.apply(this, a);
     };
     try {
-      const other = dsn.replace(/\/raceproof_test$/, '/postgres');
+      const other = dsn.replace(/\/interleave_test$/, '/postgres');
       const scenario = {
         name: 'wrong db',
         tables: ['accounts'],
