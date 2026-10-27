@@ -1,0 +1,42 @@
+iteration  1: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  2: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  3: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  4: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  5: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  6: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  7: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  8: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration  9: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 10: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 11: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 12: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 13: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 14: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 15: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 16: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 17: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 18: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 19: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+iteration 20: summary=5f987543e8a8 full=3c739421396c  explored=[6,6,14,14,44,34,6,2,2,4,4,24,24,6,6,2,30]
+
+per-seed result (identical in every iteration: yes)
+  lost-update.mjs                  exit=1 explored=  6 stoppedBy=complete findings=VIOLATION:CONFIRMED@3/p1,ANOMALY:CONFIRMED@3/p1
+  check-then-insert.mjs            exit=1 explored=  6 stoppedBy=complete findings=VIOLATION:CONFIRMED@3/p1,ANOMALY:CONFIRMED@3/p1
+  oversell.mjs                     exit=1 explored= 14 stoppedBy=complete findings=VIOLATION:CONFIRMED@4/p1,VIOLATION:CONFIRMED@4/p1,ANOMALY:CONFIRMED@4/p1
+  coupon.mjs                       exit=1 explored= 14 stoppedBy=complete findings=VIOLATION:CONFIRMED@4/p1,ANOMALY:CONFIRMED@4/p1
+  write-skew.mjs                   exit=1 explored= 44 stoppedBy=complete findings=VIOLATION:CONFIRMED@3/p1,ANOMALY:CONFIRMED@3/p1
+  deadlock.mjs                     exit=1 explored= 34 stoppedBy=complete findings=VIOLATION:CONFIRMED@4/p1
+  two-preemptions.mjs              exit=1 explored=  6 stoppedBy=complete findings=VIOLATION:CONFIRMED@5/p2
+  lost-update-safe.mjs             exit=0 explored=  2 stoppedBy=complete findings=-
+  check-then-insert-safe.mjs       exit=0 explored=  2 stoppedBy=complete findings=-
+  oversell-safe.mjs                exit=0 explored=  4 stoppedBy=complete findings=-
+  coupon-safe.mjs                  exit=0 explored=  4 stoppedBy=complete findings=-
+  write-skew-safe.mjs              exit=0 explored= 24 stoppedBy=complete findings=-
+  deadlock-safe.mjs                exit=0 explored= 24 stoppedBy=complete findings=-
+  benign-nondeterminism.mjs        exit=0 explored=  6 stoppedBy=complete findings=-
+  lost-update-no-invariants.mjs    exit=1 explored=  6 stoppedBy=complete findings=ANOMALY:CONFIRMED@3/p1
+  flaky.mjs                        exit=4 explored=  2 stoppedBy=complete findings=VIOLATION:UNCONFIRMED@1/p0
+  explode.mjs                      exit=0 explored= 30 stoppedBy=schedule-budget findings=-
+
+20 iterations: summary hashes identical in 20/20; full-report hashes identical in 20/20
+finished exit 0

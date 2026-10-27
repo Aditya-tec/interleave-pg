@@ -497,3 +497,74 @@ That run was green but not fully honest: `test/guard-network.test.ts` reported 1
 Final run on Linux: https://github.com/Aditya-tec/interleave-pg/actions/runs/40500660524 — test (20): success, test (22): success, each with 7 of 7 files, 82 of 82 tests, 0 skipped. It ran all 14 `guard-hardening` tests and all 10 `guard-network` tests (counting listeners, counting proxy, environment fallbacks, custom streams), each shown as passed in the verbose log. `npm audit --omit=dev` also passed.
 
 Not verified: macOS, and the Windows-to-Linux difference of the host-binding test is only exercised on Linux CI and this Windows machine.
+
+---
+
+# Phase 2 note: a determinism gap in the Phase 1 controller, found and fixed
+
+Phase 1 treated a blocked actor as "quiet" for as long as its statement was still in flight. After the blocker committed, Postgres woke the blocked statement a moment later, so whether that actor was runnable at the next scheduling decision depended on wake-up speed. Forced schedules were not affected in the Phase 1 evidence (the tests passed), but exploration needs the runnable set to be a pure function of the schedule. The fix (Phase 2): at every decision the controller re-probes blocked actors and waits for any whose blocker has released; an actor whose blocker is still paused at its gate stays not-runnable, so nothing stalls. Evidence it was a real gap: `test/controller-determinism.test.ts` has a fake-database unit test with a deliberately slow wake-up; with the fix disabled it fails (`expected ['A'] to deeply equal ['A','B']`), with the fix it passes.
+
+A second determinism gap was found by the Phase 2 victim-stability test: with `deadlock_timeout = 50 ms` the deadlock victim flipped under CPU load (B in 40 of 40 runs with all 12 cores busy). `init-db` now sets 300 ms (DECISIONS.md); AC1.4 still holds.
+
+Phase 1 evidence re-run after these changes (names are the post-rename ones):
+
+#### Full suite
+```
+$ npx vitest run 2>&1 | grep -E '^ +(×|↓)|Tests |Test Files'
+ Test Files  13 passed (13)
+      Tests  199 passed (199)
+[exit code: 0]
+```
+
+#### AC1.1: forced A,B,A,B violates in 100 of 100 separate CLI runs
+```
+$ ok=0; for i in $(seq 1 100); do out=$(node dist/cli.js run test/fixtures/lost-update-pool.mjs --schedule A,B,A,B 2>&1); c=$?; if [ $c -eq 1 ] && echo "$out" | grep -q "VIOLATION: both deposits applied"; then ok=$((ok+1)); fi; done; echo "violation reproduced in $ok/100 runs"
+violation reproduced in 100/100 runs
+[exit code: 0]
+```
+
+#### AC1.1 in process (100 runs), AC1.2 serial, AC1.3 blocking, AC1.4 deadlock (< 2 s), AC1.6, AC1.7 four driver styles
+```
+$ npx vitest run test/runner.test.ts --reporter=verbose 2>&1 | grep -E '^ +(✓|×|↓)|Tests '
+ ✓ test/runner.test.ts > AC1.1/AC1.2/AC1.7 lost update across driver styles > pool: interleaved schedule violates, serial schedule is clean 84ms
+ ✓ test/runner.test.ts > AC1.1/AC1.2/AC1.7 lost update across driver styles > client: interleaved schedule violates, serial schedule is clean 110ms
+ ✓ test/runner.test.ts > AC1.1/AC1.2/AC1.7 lost update across driver styles > callback: interleaved schedule violates, serial schedule is clean 62ms
+ ✓ test/runner.test.ts > AC1.1/AC1.2/AC1.7 lost update across driver styles > knex: interleaved schedule violates, serial schedule is clean 92ms
+ ✓ test/runner.test.ts > AC1.1/AC1.2/AC1.7 lost update across driver styles > AC1.1: forced A,B,A,B violates 100/100 repeated runs 951ms
+ ✓ test/runner.test.ts > AC1.3 blocking > completes without hanging and records the blocked step 98ms
+ ✓ test/runner.test.ts > AC1.4 deadlock > ends with a 40P01 outcome inside 2s 360ms
+ ✓ test/runner.test.ts > AC1.6 zero statements intercepted > fails with a clear error when the app uses a different pg copy 238ms
+ ✓ test/runner.test.ts > S2 client target check > aborts with UnsafeTargetError before any app query is sent to another database 29ms
+ ✓ test/runner.test.ts > edge cases > rejects parallel statements inside one actor 159ms
+ ✓ test/runner.test.ts > edge cases > reports a stall when an actor waits outside the database 2423ms
+ ✓ test/runner.test.ts > edge cases > rejects an unknown actor in the schedule 46ms
+      Tests  12 passed (12)
+[exit code: 0]
+```
+
+#### AC1.3 blocking through the CLI
+```
+$ node dist/cli.js run test/fixtures/blocking.mjs --schedule A,A,B,B,A,A,B,B | grep -E 'BLOCKED|No violations|Coverage'
+      ^ [BLOCKED] B waited on A before this statement completed
+No violations found in 1 schedule (forced schedule A,A,B,B,A,A,B,B; exhaustive within bound: no)
+Coverage: explored 1 schedule (forced), preemption bound: n/a, exhaustive within bound: no, stopped by: forced-schedule
+[exit code: 0]
+```
+
+#### AC1.4 deadlock through the CLI
+```
+$ node dist/cli.js run test/fixtures/deadlock.mjs --schedule A,A,B,B,A,B | grep -E '40P01|Outcomes|A:|B:'
+ 5  A     T1   UPDATE accounts SET balance = balance + 1 WHE... [2]             ERROR 40P01: deadlock detected
+Outcomes:
+  A: rejected (40P01: deadlock detected)
+  B: fulfilled
+[exit code: 0]
+```
+
+#### AC1.5 refusals (S1/S2), now including the hardening and network-proof tests
+```
+$ npx vitest run test/guard.test.ts test/guard-hardening.test.ts test/guard-network.test.ts 2>&1 | grep -E '^ +(×|↓)|Tests |Test Files'
+ Test Files  3 passed (3)
+      Tests  49 passed (49)
+[exit code: 0]
+```
