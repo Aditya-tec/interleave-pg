@@ -61,6 +61,8 @@ export interface ExecuteOptions {
   invariants?: boolean;
   /** Compute the canonical snapshot hash of the tables (default false). */
   snapshot?: boolean;
+  /** Run only these actors (used for serial reference runs of a subset). */
+  only?: string[];
   /** Label stored in `schedule` (default: the chosen actors). */
   label?: string[];
 }
@@ -174,7 +176,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
   const snapshotHash = async (): Promise<string> => hashSnapshot(await takeSnapshot(control, scenario.tables, scenario.options?.ignoreColumns ?? []));
 
   const execute = async (xo: ExecuteOptions): Promise<RunResult> => {
-    const ids = Object.keys(scenario.actors);
+    const ids = xo.only ?? Object.keys(scenario.actors);
     const t0 = Date.now();
     await reset();
     state.unsafe = null;
