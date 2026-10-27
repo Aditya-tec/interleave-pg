@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS scratch;
+CREATE TABLE scratch (id int PRIMARY KEY);

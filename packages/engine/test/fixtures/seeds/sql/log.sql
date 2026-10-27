@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS log;
+CREATE TABLE log (seq serial PRIMARY KEY, tag text NOT NULL);
