@@ -27,5 +27,11 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci
       - run: npm run build
-      - run: npm test -w interleave-pg -- --reporter=verbose
+      - name: Tests (verbose + JSON results)
+        run: npm test -w interleave-pg -- --reporter=verbose --reporter=json --outputFile.json=test-results.json
+      - name: Fail on any skipped or failed test (environment checks must run in CI, never skip)
+        run: |
+          node -e "const r=require('./packages/engine/test-results.json'); console.log(r.numPassedTests+' passed, '+r.numPendingTests+' skipped, '+r.numFailedTests+' failed, '+r.numTodoTests+' todo'); if(r.numPendingTests>0||r.numFailedTests>0||r.numTodoTests>0||r.numPassedTests===0) process.exit(1)"
+      - name: Determinism check (explore every seed 5 times, compare counts, findings and full reports)
+        run: node packages/engine/scripts/determinism.mjs --iterations 5
       - run: npm audit --omit=dev
