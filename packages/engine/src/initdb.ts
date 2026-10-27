@@ -32,7 +32,7 @@ export async function initDb(opts: InitDbOptions): Promise<string> {
         if (e.code !== '42P04') throw e;
       }
     }
-    await a.query(`ALTER DATABASE ${quote(opts.name)} SET deadlock_timeout = '50ms'`);
+    await a.query(`ALTER DATABASE ${quote(opts.name)} SET deadlock_timeout = '300ms'`);
   } finally {
     await a.end();
   }

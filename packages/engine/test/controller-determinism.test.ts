@@ -45,6 +45,21 @@ describe('runnable sets are a pure function of the schedule (blocked actors)', (
   });
 });
 
+describe('deadlock victim is stable', () => {
+  it('the first blocked actor is always the one Postgres aborts (40P01), run after run', async () => {
+    // @ts-ignore
+    const deadlock = (await import('./fixtures/deadlock.mjs')).default;
+    session = await createSession(deadlock, { dsn, scenarioDir: fixtures });
+    const victims = new Map<string, number>();
+    for (let i = 0; i < 40; i++) {
+      const r = await session.run('AABBAB'.split(''));
+      const v = r.results.filter((x) => x.error?.code === '40P01').map((x) => x.actor).join(',');
+      victims.set(v, (victims.get(v) ?? 0) + 1);
+    }
+    expect([...victims.entries()]).toEqual([['A', 40]]);
+  });
+});
+
 describe('controller unit test with a fake database (slow wake-up of a blocked statement)', () => {
   it('waits for a blocked statement whose blocker has released, so the runnable set does not depend on wake-up speed', async () => {
     const { Controller } = await import('../src/controller.js');

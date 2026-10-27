@@ -21,7 +21,7 @@ describe('init-db', () => {
     const d = await c.query('SHOW deadlock_timeout');
     await c.end();
     expect(m.rows[0].ok).toBe(true);
-    expect(d.rows[0].deadlock_timeout).toBe('50ms');
+    expect(d.rows[0].deadlock_timeout).toBe('300ms');
   });
   it('refuses names without the interleave_ prefix and remote hosts', async () => {
     await expect(initDb({ adminDsn: adminDsn(), name: 'production' })).rejects.toBeInstanceOf(UnsafeTargetError);
