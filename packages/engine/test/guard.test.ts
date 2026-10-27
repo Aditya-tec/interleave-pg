@@ -70,3 +70,28 @@ describe('redactDsn', () => {
     expect(redactDsn('garbage')).toBe('garbage');
   });
 });
+
+describe('parseDsn allowlist', () => {
+  const refuse = [
+    'postgres://u@localhost/raceproof_a?sslmode=require',
+    'postgres://u@localhost/raceproof_a?port=5999',
+    'postgres://u@localhost/raceproof_a?service=prod',
+    'postgres://u@localhost/raceproof_a?options=-c%20search_path%3Dx',
+    'postgres://u@localhost/raceproof_a?host=relative/dir',
+    'postgres://u@localhost/raceproof_a?host=/var/run/postgresql',
+    'postgres:///raceproof_a?host=/a,/b',
+    'postgres://u@localhost/raceproof_a?application_name=a&application_name=b',
+    'postgres://u@localhost/raceproof_a?connect_timeout=abc',
+    'postgres://u@localhost/raceproof_a/extra',
+    'host=localhost dbname=raceproof_a',
+  ];
+  for (const dsn of refuse) {
+    it(`refuses ${dsn}`, () => {
+      expect(() => parseDsn(dsn)).toThrow(UnsafeTargetError);
+    });
+  }
+  it('accepts the allowlisted parameters', () => {
+    expect(parseDsn('postgres://u@localhost:5433/raceproof_a?application_name=x&connect_timeout=5').database).toBe('raceproof_a');
+    expect(parseDsn('postgres:///raceproof_a?host=/var/run/postgresql').host).toBe('/var/run/postgresql');
+  });
+});

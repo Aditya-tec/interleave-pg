@@ -16,3 +16,7 @@
 - Verified only on Windows 11 + Docker Desktop (Postgres 17.11) and Node 22.16 in this session. Linux/macOS and Node 20 were not run. CI has not run (no remote), so "CI green" is unverified.
 - `.ts` scenarios could not be exercised here: Node 22.16 is below 22.18, so only the clear-error path was tested.
 - Windows: the engine behaved correctly natively with Docker Desktop; no WSL2 workaround was needed in this session.
+- Custom-stream detection is structural: a pristine `net.Socket` that the user constructed and passed as `stream` looks the same as pg's own and is allowed. It still connects to the already-checked host and port, so it cannot redirect traffic. Any other stream type, subclass, pre-connected socket or instance-patched `connect` is refused.
+- The host-binding test uses `127.0.0.2`; on macOS (where only `127.0.0.1` is configured by default) it is skipped with a message instead of run.
+- `pg-native` is out of scope and not guarded.
+- The engine's target DSN never uses `PG*` environment fallbacks (host defaults to `localhost`, port to 5432); only app clients are checked against the environment-resolved values.

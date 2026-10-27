@@ -31,28 +31,54 @@ export function isLocalHost(host: string): boolean {
   return LOOPBACK.has(host) || host.startsWith('/');
 }
 
+/** Query parameters a DSN may carry. Everything else (hostaddr, dbname, port, service, options, ...) is refused. */
+const ALLOWED_PARAMS = new Set(['application_name', 'connect_timeout']);
+
 export function parseDsn(dsn: string): Target {
+  const refuse = (why: string): never => { throw new UnsafeTargetError(`refusing target: ${why}`); };
   let url: URL;
   try {
     url = new URL(dsn);
   } catch {
-    throw new UnsafeTargetError('refusing target: DSN is not a parseable postgres:// URL');
+    return refuse('DSN is not a parseable postgres:// URL (multi-host DSNs and key=value strings are not supported)');
   }
-  if (url.protocol !== 'postgres:' && url.protocol !== 'postgresql:') {
-    throw new UnsafeTargetError('refusing target: DSN must use the postgres:// scheme');
+  if (url.protocol !== 'postgres:' && url.protocol !== 'postgresql:') refuse('DSN must use the postgres:// scheme');
+  if (url.hostname.includes(',') || decodeURIComponent(url.hostname).includes(',')) refuse('multi-host DSNs are not supported');
+
+  let socketDir: string | undefined;
+  const seen = new Set<string>();
+  for (const [key, value] of url.searchParams) {
+    if (seen.has(key)) refuse(`query parameter "${key}" is given more than once`);
+    seen.add(key);
+    if (key === 'host') {
+      if (!value.startsWith('/') || value.includes(',')) refuse('query parameter "host" is only allowed as a local unix-socket directory path');
+      socketDir = value;
+    } else if (!ALLOWED_PARAMS.has(key)) {
+      refuse(`query parameter "${key}" is not allowed (allowed: host=<socket dir>, ${[...ALLOWED_PARAMS].join(', ')})`);
+    }
   }
-  const socketDir = url.searchParams.get('host');
-  let host = socketDir ?? decodeURIComponent(url.hostname);
+  if (connectTimeoutInvalid(url)) refuse('connect_timeout must be a non-negative integer');
+
+  const hostFromAuthority = decodeURIComponent(url.hostname);
+  if (socketDir && hostFromAuthority) refuse('the host is set in two places (authority and ?host=)');
+  let host = socketDir ?? hostFromAuthority;
   if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
   if (!host) host = 'localhost';
-  const database = decodeURIComponent(url.pathname.replace(/^\//, ''));
+
+  const pathDb = decodeURIComponent(url.pathname.replace(/^\//, ''));
+  if (pathDb.includes('/')) refuse('database name must be a single path segment');
   return {
     host,
     port: url.port ? Number(url.port) : 5432,
-    database,
+    database: pathDb,
     user: url.username ? decodeURIComponent(url.username) : undefined,
     password: url.password ? decodeURIComponent(url.password) : undefined,
   };
+}
+
+function connectTimeoutInvalid(url: URL): boolean {
+  const v = url.searchParams.get('connect_timeout');
+  return v !== null && !/^[0-9]+$/.test(v);
 }
 
 /** Static checks only: no connection, no query. */
@@ -103,5 +129,27 @@ export function checkClientParams(
     throw new UnsafeTargetError(
       `UnsafeTargetError: client points at ${host}:${port}/${c.database}, allowed target is ${target.host}:${target.port}/${target.database}`,
     );
+  }
+}
+
+/**
+ * Checks a pg Client's EFFECTIVE endpoint (host/port/database after pg resolved config and
+ * PGHOST/PGPORT/PGDATABASE fallbacks) and its transport. Runs before a socket is opened.
+ */
+export function assertClientEndpoint(target: Target, client: any, netModule: typeof import('node:net')): void {
+  checkClientParams(target, { host: client.host, port: client.port, database: client.database });
+  const conn = client.connection;
+  const s = conn?.stream;
+  const pristine =
+    conn?.constructor?.name === 'Connection' &&
+    s instanceof netModule.Socket &&
+    Object.getPrototypeOf(s) === netModule.Socket.prototype &&
+    !Object.prototype.hasOwnProperty.call(s, 'connect') &&
+    s.connect === netModule.Socket.prototype.connect &&
+    s.connecting === false &&
+    s.destroyed === false &&
+    !s.remoteAddress;
+  if (!pristine) {
+    throw new UnsafeTargetError('UnsafeTargetError: client uses a custom stream/connection, which could carry traffic somewhere other than the checked endpoint');
   }
 }

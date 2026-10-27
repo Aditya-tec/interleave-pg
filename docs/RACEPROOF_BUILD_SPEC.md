@@ -90,12 +90,12 @@ Components: `hook`, `actor-context`, `controller`, `strategy`, `reset`, `oracles
 ## 4. Engine design (authoritative detail)
 
 ### 4.1 Interception (`hook`)
-- Patch `pg.Client.prototype.query` of the **target project's** `pg`: resolve with `createRequire(<scenario dir>)('pg')`. If the app resolves a different `pg` copy, statements will not be seen. Therefore: **if a run completes with zero intercepted statements, fail with a clear error** ("no statements intercepted: pg resolution mismatch?").
+- Patch `pg.Client.prototype.query` **and `pg.Client.prototype.connect`** (promise and callback forms) of the **target project's** `pg`: resolve with `createRequire(<scenario dir>)('pg')`. If the app resolves a different `pg` copy, statements will not be seen. Therefore: **if a run completes with zero intercepted statements, fail with a clear error** ("no statements intercepted: pg resolution mismatch?").
 - Supported call shapes: `query(text)`, `query(text, values)`, `query({text, values, name})`, with promise **and** callback forms. For callback form, wrap the callback with `AsyncResource.bind` so actor context survives.
 - Unsupported (pass through ungated + warning): `COPY`, cursors / `pg-query-stream` (Submittable objects), `LISTEN/NOTIFY`. In `--strict` mode these abort the run.
 - Capture `client.processID` (backend pid) after connect; keep a registry of all hooked clients for cleanup.
 - The control connection and engine-internal queries **bypass** the hook (marked with a private Symbol; engine keeps a reference to the original `query`).
-- Every hooked client's connection parameters (host, port, database) must equal the allowed target, otherwise throw `UnsafeTargetError` before sending anything (section 7).
+- Every hooked client's connection parameters (host, port, database) must equal the allowed target, otherwise throw `UnsafeTargetError` before sending anything (section 7). The check runs in the patched `connect` **before any socket is opened**, on the client's *effective* host, port and database (after pg resolved config and the `PGHOST`/`PGPORT`/`PGDATABASE` fallbacks, not the DSN string), and refuses any client with a custom `stream` or `connection`; the query-time check stays as a second layer. The engine's own control connection goes through the same guard. The DSN itself is parsed with an allowlist (only `host=<local socket dir>`, `application_name`, `connect_timeout`); every other query parameter, multi-host DSNs and a database set in two places are refused.
 
 ### 4.2 Actors (`actor-context`)
 - Each actor runs via `AsyncLocalStorage.run({ actor: 'A', runId }, fn)`. A gated statement reads the actor id from the store. A statement with no actor context is passed through and recorded as `untracked` (warning; error in `--strict`).
@@ -232,7 +232,7 @@ DSN only from `--dsn` or `RACEPROOF_DSN` (never implicitly from `DATABASE_URL`).
 | # | Requirement | Test |
 |---|---|---|
 | S1 | **Target guard:** refuse unless host ∈ {localhost, 127.0.0.1, ::1, unix socket}, DB name matches `^raceproof_`, marker table `raceproof_marker` exists (created only by `init-db`), and `NODE_ENV != production` | Unit tests for each refusal ⇒ exit code 3 and **no query sent, except one read-only catalog probe for the marker-table check** |
-| S2 | Every hooked client's host/port/database must equal the allowed target, else `UnsafeTargetError` before sending | Test: app pool pointed at another DB ⇒ abort |
+| S2 | Every hooked client's **effective** host/port/database must equal the allowed target, else `UnsafeTargetError` **before any socket is opened** (check in patched `connect`, plus query-time second layer); custom `stream`/`connection` refused | Tests: counting TCP listener on a hostile host/port accepts 0 connections; counting proxy in front of Postgres sees no StartupMessage for another database; env-fallback and custom-stream cases refused |
 | S3 | No network access, no telemetry | CI test running under a network-deny namespace/mock; grep for `http`, `fetch`, `net` usage in `src` |
 | S4 | HTML report escapes all dynamic text (SQL, params, data) | Test with `<script>` / `"onerror=` payloads in data |
 | S5 | Redact passwords in logs/reports (`postgres://user:***@host`) | Test |

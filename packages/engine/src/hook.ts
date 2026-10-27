@@ -1,7 +1,8 @@
 import { AsyncResource } from 'node:async_hooks';
+import net from 'node:net';
 import { als } from './actor-context.js';
 import type { Controller, Outcome } from './controller.js';
-import { checkClientParams, UnsafeTargetError, type Target } from './guard.js';
+import { assertClientEndpoint, checkClientParams, UnsafeTargetError, type Target } from './guard.js';
 import { BYPASS, type PgModule } from './pg-load.js';
 
 export interface HookState {
@@ -33,6 +34,25 @@ export interface Hook {
 export function installHook(pg: PgModule, state: HookState): Hook {
   const proto = pg.Client.prototype;
   const original = proto.query;
+  const originalConnect = proto.connect;
+
+  /** Layer 1: runs before any socket is opened. */
+  function patchedConnect(this: any, ...args: any[]): any {
+    if (this[BYPASS]) return originalConnect.apply(this, args);
+    try {
+      assertClientEndpoint(state.target, this, net);
+    } catch (e) {
+      state.unsafe ??= e as UnsafeTargetError;
+      state.controller?.abort(e as Error);
+      const cb = args[0];
+      if (typeof cb === 'function') {
+        process.nextTick(cb, e);
+        return undefined;
+      }
+      return Promise.reject(e);
+    }
+    return originalConnect.apply(this, args);
+  }
 
   function patched(this: any, ...args: any[]): any {
     if (this[BYPASS]) return original.apply(this, args);
@@ -105,11 +125,13 @@ export function installHook(pg: PgModule, state: HookState): Hook {
   }
 
   proto.query = patched;
+  proto.connect = patchedConnect;
 
   return {
     original,
     uninstall() {
       if (proto.query === patched) proto.query = original;
+      if (proto.connect === patchedConnect) proto.connect = originalConnect;
     },
     async prepareClient(client: any, settings: string) {
       if (client[PREPARED]) return;
