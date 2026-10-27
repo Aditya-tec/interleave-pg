@@ -1,0 +1,1 @@
+import pg from 'pg'; export const run = async (dsn) => { const c = new pg.Client(dsn); await c.connect(); await c.query('SELECT 1'); await c.end(); };
