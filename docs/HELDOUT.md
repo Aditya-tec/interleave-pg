@@ -49,3 +49,68 @@ The commit is pushed to `origin` before the final run, so GitHub's push time is 
 2. `node eval/hash-heldout.mjs --verify 4daa9bdf0c9074a99e7a5e47abf42baed360dbbc95a12305089d60655ce78a66`
 3. `INTERLEAVE_DSN=... node eval/engine-metrics.js --set heldout --out ...` and the same for `heldout-human`, once, on Postgres 17 locally.
 4. The numbers are published as they come (`docs/ENGINE_RESULTS.md`), separately from the dev numbers. No engine change follows.
+
+---
+
+# Human held-out set (`corpus/heldout-human/`)
+
+**Authorship label used in every report:** these five scenarios were **externally authored, by someone other than the engine's author, and are independent of the engine author**. The 15 scenarios in `corpus/heldout/` were written by the same agent that wrote the engine and are **not independent of the engine's author**; the two sets are always reported separately and never merged.
+
+| Scenario | Expected | Class (as authored) |
+|---|---|---|
+| leave-balance-overdraw | buggy | lost-update |
+| retried-job-double-send | buggy | check-then-insert |
+| webhook-credit-before-dedupe | buggy | idempotency-race (a UNIQUE constraint is hit too late; tests that the oracle does not hide the bug because a constraint error occurred) |
+| seat-hold-atomic-update | safe | atomic conditional UPDATE after a peek (a tool that flags every SELECT-then-UPDATE would false-positive) |
+| wallet-optimistic-version | safe | optimistic concurrency, version column + retry loop |
+
+## Committed untouched, then adapted in a separate commit
+
+* `12e48fd9f716468114bfc39e3bd471e96114b46b`: the five scenarios **byte for byte as supplied** (20 files: `schema.sql`, `app.mjs`, `scenario.mjs`, `expected.json` each). Tree hash of that state (same method as below, scenario directories only): `0488bfc6a6b280d63bbf07c58a49f1b5f660c9a826f43f972cd214d1f771379d`.
+* `c240cc004d14136a6084661f8073afaf3c64d714`: the mechanical adaptations only (`git diff 12e48fd c240cc0 -- corpus/heldout-human`).
+
+### Every adaptation
+
+1. **`schema.sql`: `DROP TABLE IF EXISTS ... CASCADE;` lines prepended** (the `CREATE TABLE IF NOT EXISTS` lines are untouched, byte for byte). Needed because every corpus scenario shares one throwaway database and `IF NOT EXISTS` silently keeps a stale table with other columns: unadapted, three of the five failed their serial run with `column "credits" of relation "accounts" does not exist`, `column "holder" of relation "seats" does not exist` and `column "id" of relation "wallets" does not exist` (other scenarios own tables of the same names). This is the isolation rule from the README ("drop-then-create every table"). Added lines:
+   * leave-balance-overdraw: `DROP TABLE IF EXISTS leave_requests CASCADE;` `DROP TABLE IF EXISTS leave_balances CASCADE;`
+   * retried-job-double-send: `DROP TABLE IF EXISTS outbox CASCADE;` `DROP TABLE IF EXISTS jobs CASCADE;`
+   * webhook-credit-before-dedupe: `DROP TABLE IF EXISTS webhook_events CASCADE;` `DROP TABLE IF EXISTS accounts CASCADE;`
+   * seat-hold-atomic-update: `DROP TABLE IF EXISTS seats CASCADE;`
+   * wallet-optimistic-version: `DROP TABLE IF EXISTS wallets CASCADE;`
+2. **`expected.json`: field names mapped to this repo's format** (`docs/METRICS.md`): `verdict` to `expect`, `bugClass` to `class`, `mustFailInvariant` to `invariant`; added `id`, `scope: "in"`, `driver: "pg"`; kept `minPreemptions` and `notes` as extra fields (ignored by the metrics script); no `class`, `invariant` or `fix` are invented for the two safe scenarios. The author's file is preserved byte for byte as `expected.original.json` next to it. Invariant names, verdicts and notes are unchanged.
+
+### Not adapted
+
+`scenario.mjs` and `app.mjs` are untouched. `import { defineScenario } from 'interleave-pg'` resolves through the workspace link in `node_modules` to `packages/engine/dist` (so the engine must be built; `npm run build`, which every test and metrics command already does). `setup({ dsn })` already receives the dsn as they wrote it. No SQL in a handler, no invariant and no expectation was changed.
+
+## Serial single-user sanity check (the only run made on these files)
+
+`node eval/serial-check.mjs` runs each scenario's actors one after another (A then B, and B then A), with no exploration, and compares with the serial results the author listed. After the adaptations, on Postgres 17, all ten runs matched, with every invariant holding:
+
+```
+ok   leave-balance-overdraw A,B: first={"approved":true} second={"approved":false} balance 2: got 2; invariants violated: 0
+ok   leave-balance-overdraw B,A: first={"approved":true} second={"approved":false} balance 2: got 2; invariants violated: 0
+ok   retried-job-double-send A,B: first={"sent":true} second={"skipped":true} outbox rows 1: got 1; invariants violated: 0
+ok   retried-job-double-send B,A: first={"sent":true} second={"skipped":true} outbox rows 1: got 1; invariants violated: 0
+ok   webhook-credit-before-dedupe A,B: first={"applied":true} second={"duplicate":true} credits 10: got 10; invariants violated: 0
+ok   webhook-credit-before-dedupe B,A: first={"applied":true} second={"duplicate":true} credits 10: got 10; invariants violated: 0
+ok   seat-hold-atomic-update A,B: first={"booked":true} second={"booked":false} seat held: got 1; invariants violated: 0
+ok   seat-hold-atomic-update B,A: first={"booked":true} second={"booked":false} seat held: got 1; invariants violated: 0
+ok   wallet-optimistic-version A,B: first={"ok":true} second={"ok":false} balance 40: got 40; invariants violated: 0
+ok   wallet-optimistic-version B,A: first={"ok":true} second={"ok":false} balance 40: got 40; invariants violated: 0
+```
+
+No exploration, metrics or CLI `run` was made on any of the five. (The unadapted files produced the three schema errors above, not a different serial result; that is why adaptation 1 exists.)
+
+## Hash of `corpus/heldout-human/` (adapted state, scenario directories only)
+
+`node eval/hash-heldout.mjs --set heldout-human` (the README, `_template/` and `_example-retried-job/` are not scenarios and are not hashed):
+
+| | |
+|---|---|
+| Tree sha256 | `d092e96057751c45943bad8603b6f441c9cd343fa68a80da3808623bd30cfd0e` |
+| Files hashed | 25 |
+
+The final run verifies both hashes first: `node eval/hash-heldout.mjs --verify 4daa9bdf0c9074a99e7a5e47abf42baed360dbbc95a12305089d60655ce78a66` and `node eval/hash-heldout.mjs --set heldout-human --verify d092e96057751c45943bad8603b6f441c9cd343fa68a80da3808623bd30cfd0e`. If the project owner adds more human scenarios, the new hash is appended here before the run.
+
+The final run still waits for the project owner's confirmation that `corpus/heldout-human/` is complete and that the repository is public.

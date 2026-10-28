@@ -3,7 +3,8 @@
 //   node eval/hash-heldout.mjs            print every file's sha256 and the tree hash
 //   node eval/hash-heldout.mjs --verify <treeHash>   exit 1 if the set changed
 //   add --set heldout-human to hash the human-authored scenarios instead (top-level files and directories starting with _ or . are ignored)
-// The hash covers corpus/heldout/** and the three shared helper modules those scenarios import.
+// For the agent-written set the hash covers corpus/heldout/** and the three shared helper modules those scenarios import;
+// for heldout-human it covers the scenario directories only (they import nothing from this repo except the published package).
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
@@ -22,7 +23,7 @@ const walk = (dir, top = true) => {
   }
 };
 walk(join(root, 'corpus', set));
-for (const f of ['lib.mjs', 'lib-knex.mjs', 'lib-drizzle.mjs']) files.push(join(root, 'corpus', '_lib', f));
+if (set === 'heldout') for (const f of ['lib.mjs', 'lib-knex.mjs', 'lib-drizzle.mjs']) files.push(join(root, 'corpus', '_lib', f));
 
 const lines = files
   .map((p) => [relative(root, p).split(sep).join('/'), createHash('sha256').update(readFileSync(p).toString('utf8').replace(/\r\n/g, '\n')).digest('hex')])
