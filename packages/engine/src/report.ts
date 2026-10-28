@@ -1,12 +1,22 @@
+import { readFileSync } from 'node:fs';
 import { ScenarioError } from './errors.js';
 import type { ExploreReport } from './explorer.js';
+import { validateAgainstSchema, type Schema } from './json-schema.js';
 
 export const MAX_REPORT_BYTES = 1024 * 1024;
+export const REPORT_SCHEMA_VERSION = 1;
+
+let cachedSchema: Schema | undefined;
+/** The published JSON Schema (packages/engine/schema/report.schema.json): the same file the writer checks itself against. */
+export function reportSchema(): Schema {
+  cachedSchema ??= JSON.parse(readFileSync(new URL('../schema/report.schema.json', import.meta.url), 'utf8')) as Schema;
+  return cachedSchema;
+}
 
 /** Appendix B shape, plus the few fields replay needs. */
 export function serializeReport(r: ExploreReport): string {
   const out = {
-    schemaVersion: 1,
+    schemaVersion: REPORT_SCHEMA_VERSION,
     tool: r.tool,
     version: r.version,
     scenario: r.scenario,
@@ -45,6 +55,8 @@ export function serializeReport(r: ExploreReport): string {
     exitCode: r.exitCode,
   };
   const text = JSON.stringify(out, null, 2);
+  const problems = validateAgainstSchema(reportSchema(), JSON.parse(text));
+  if (problems.length) throw new ScenarioError(`internal error: the report does not match its schema (${problems.slice(0, 3).join('; ')}); it was not written`);
   if (Buffer.byteLength(text) > MAX_REPORT_BYTES) throw new ScenarioError(`report too large (limit ${MAX_REPORT_BYTES} bytes)`);
   return text;
 }
@@ -87,6 +99,8 @@ export function parseReport(text: string): SavedReport {
   if (!isObj(raw)) bad('top level must be an object');
   const r = raw as Record<string, unknown>;
   if (r.tool !== 'interleave-pg') bad('"tool" must be "interleave-pg"');
+  if (r.schemaVersion === undefined) bad('the report has no schemaVersion; it was written by an older interleave-pg. Run the scenario again to create a new report');
+  if (r.schemaVersion !== REPORT_SCHEMA_VERSION) bad(`unsupported report schemaVersion ${JSON.stringify(r.schemaVersion)} (this version of interleave-pg reads schemaVersion ${REPORT_SCHEMA_VERSION})`);
   const target = r.target;
   if (!isObj(target)) bad('"target" is required');
   const isolation = (target as Record<string, unknown>).isolation;

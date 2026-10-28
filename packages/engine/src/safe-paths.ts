@@ -67,10 +67,11 @@ export function checkAllowDirs(dirs: string[]): string[] {
 }
 
 const MAX_EXISTING = 1024 * 1024;
+export const HTML_MARKER = '<!-- interleave-pg report -->';
 
 /** Everything writeReportFile checks, without writing. Returns the real target path. */
-export function assertReportTarget(path: string, roots: string[]): string {
-  if (extname(path).toLowerCase() !== '.json') throw new ScenarioError(`report path "${path}" must end in .json`);
+export function assertReportTarget(path: string, roots: string[], kind: 'json' | 'html' = 'json'): string {
+  if (extname(path).toLowerCase() !== `.${kind}`) throw new ScenarioError(`report path "${path}" must end in .${kind}`);
   const target = resolveInside(path, roots, 'report path');
   if (existsSync(target)) {
     const st = lstatSync(target);
@@ -78,8 +79,12 @@ export function assertReportTarget(path: string, roots: string[]): string {
     if (st.size > MAX_EXISTING) throw new ScenarioError(`"${path}" exists and is not an interleave-pg report (too large); it was not overwritten`);
     let ok = false;
     try {
-      const j = JSON.parse(readFileSync(target, 'utf8'));
-      ok = typeof j === 'object' && j !== null && j.tool === 'interleave-pg';
+      const text = readFileSync(target, 'utf8');
+      if (kind === 'html') ok = text.slice(0, 200).includes(HTML_MARKER);
+      else {
+        const j = JSON.parse(text);
+        ok = typeof j === 'object' && j !== null && j.tool === 'interleave-pg';
+      }
     } catch {
       ok = false;
     }
@@ -89,8 +94,8 @@ export function assertReportTarget(path: string, roots: string[]): string {
 }
 
 /** Atomic write: temp file in the same directory, then rename over the target. */
-export function writeReportFile(path: string, text: string, roots: string[]): string {
-  const target = assertReportTarget(path, roots);
+export function writeReportFile(path: string, text: string, roots: string[], kind: 'json' | 'html' = 'json'): string {
+  const target = assertReportTarget(path, roots, kind);
   mkdirSync(dirname(target), { recursive: true });
   const temp = join(dirname(target), `.${basename(target)}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`);
   try {

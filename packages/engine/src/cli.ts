@@ -6,6 +6,7 @@ import { doctor } from './doctor.js';
 import { ScenarioError } from './errors.js';
 import { explore, exploreMatrix, formatExplore, formatMatrix, replayFinding, type ExploreRunOptions } from './explorer.js';
 import { redactDsn, UnsafeTargetError } from './guard.js';
+import { renderHtml } from './html-report.js';
 import { initDb } from './initdb.js';
 import { loadScenario } from './loader.js';
 import { MAX_REPORT_BYTES, parseReport, serializeReport } from './report.js';
@@ -19,7 +20,7 @@ Usage:
   interleave-pg init-db [--name interleave_dev] [--compose] [--deadlock-timeout 300ms]
   interleave-pg run <scenario.mjs> [--max-preemptions K] [--max-schedules N] [--time-budget 120s]
                     [--strategy dfs|random --seed N --runs M] [--isolation default|rc|rr|ser|matrix]
-                    [--json out.json] [--allow-dir DIR]
+                    [--json out.json] [--html out.html] [--allow-dir DIR]
   interleave-pg run <scenario.mjs> --schedule A,B,A,B        (one forced schedule)
   interleave-pg replay <report.json> [--violation v1] [--allow-dir DIR]
   interleave-pg doctor
@@ -112,6 +113,7 @@ async function main(argv: string[]): Promise<number> {
         runs: { type: 'string' },
         isolation: { type: 'string' },
         json: { type: 'string' },
+        html: { type: 'string' },
         'allow-dir': { type: 'string', multiple: true },
       },
     });
@@ -131,6 +133,7 @@ async function main(argv: string[]): Promise<number> {
     };
     const rootDirs = roots(values['allow-dir']);
     if (values.json) assertReportTarget(values.json, rootDirs); // fail before doing any work
+    if (values.html) assertReportTarget(values.html, rootDirs, 'html');
     const dsn = (values.dsn ?? process.env.INTERLEAVE_DSN) as string;
     const { scenario, dir } = await loadScenario(file);
     const scenarioAbs = resolve(file);
@@ -166,6 +169,7 @@ async function main(argv: string[]): Promise<number> {
       const report = await explore(session, opts);
       out(formatExplore(report));
       if (values.json) writeReport(values.json, serializeReport(report), rootDirs);
+      if (values.html) writeReportFile(values.html, renderHtml(report), rootDirs, 'html');
       return report.exitCode;
     } finally {
       await session.close();

@@ -13,7 +13,8 @@
     "interleave-pg": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "schema"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Aditya-tec/interleave-pg/blob/main/packages/engine/schema/report.schema.json",
+  "title": "interleave-pg report.json",
+  "description": "Written by `interleave-pg run --json`. schemaVersion 1. Unknown extra properties are allowed so that minor additions do not break readers; `replay` rejects any other schemaVersion.",
+  "type": "object",
+  "required": ["schemaVersion", "tool", "version", "scenario", "target", "coverage", "oracles", "oracle", "violations", "warnings", "notes", "exitCode"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "tool": { "const": "interleave-pg" },
+    "version": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "scenario": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "scenarioFile": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "target": {
+      "type": "object",
+      "required": ["host", "port", "db", "isolation"],
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "db": { "type": "string" },
+        "isolation": { "enum": ["default", "rc", "rr", "ser"] }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["explored", "preemptionBound", "exhaustiveWithinBound", "stoppedBy", "strategy", "serialReferenceRuns", "actors", "schedulesByPreemptions"],
+      "properties": {
+        "explored": { "type": "integer", "minimum": 0 },
+        "preemptionBound": { "type": ["integer", "null"], "minimum": 0 },
+        "exhaustiveWithinBound": { "type": "boolean" },
+        "stoppedBy": { "enum": ["complete", "schedule-budget", "time-budget"] },
+        "strategy": { "enum": ["dfs", "random"] },
+        "seed": { "type": "integer" },
+        "runs": { "type": "integer" },
+        "distinct": { "type": "integer" },
+        "serialReferenceRuns": { "type": "integer", "minimum": 0 },
+        "actors": { "type": "integer", "minimum": 1 },
+        "schedulesByPreemptions": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "oracles": { "type": "array", "items": { "type": "string" } },
+    "oracle": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["ok", "unreliable", "off"] },
+        "reason": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "violations": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "invariant", "status", "confirmed", "preemptions", "scheduleIndex", "occurrences", "notice", "schedule", "fingerprint", "timeline", "hints", "warnings"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^v[0-9]{1,4}$" },
+          "kind": { "enum": ["VIOLATION", "ANOMALY"] },
+          "invariant": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "detail": { "type": "string" },
+          "status": { "enum": ["CONFIRMED", "UNCONFIRMED"] },
+          "confirmed": { "type": "string", "pattern": "^[0-9]+/[0-9]+$" },
+          "preemptions": { "type": "integer", "minimum": 0 },
+          "scheduleIndex": { "type": "integer", "minimum": 1 },
+          "occurrences": { "type": "integer", "minimum": 1 },
+          "notice": { "type": "string" },
+          "schedule": { "type": "array", "minItems": 1, "maxItems": 5000, "items": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,16}$" } },
+          "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["step", "actor", "txn", "sql", "result"],
+              "properties": {
+                "step": { "type": "integer", "minimum": 1 },
+                "actor": { "type": "string" },
+                "txn": { "type": ["string", "null"] },
+                "sql": { "type": "string" },
+                "params": { "type": "array" },
+                "result": { "type": "string" },
+                "blockedBy": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "hints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["label", "heuristic", "detail", "fix"],
+              "properties": { "label": { "type": "string" }, "heuristic": { "const": true }, "detail": { "type": "string" }, "fix": { "type": "string" } }
+            }
+          },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "exitCode": { "enum": [0, 1, 4] }
+  }
+}

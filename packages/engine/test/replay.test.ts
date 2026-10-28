@@ -8,6 +8,7 @@ import { pkg, runCli, seed } from './cli-helpers.js';
 const tmp = join(pkg, 'test', '.tmp', 'replay');
 const rel = (f: string) => join('test', '.tmp', 'replay', f);
 const good = () => ({
+  schemaVersion: 1,
   tool: 'interleave-pg',
   version: '0.0.0',
   scenario: 'x',
