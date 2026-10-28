@@ -29,8 +29,8 @@ const run = (set, file, tb) => new Promise((res, rej) => {
   const args = [join(here, 'engine-metrics.js'), '--set', set, '--out', file, ...(tb ? ['--time-budget', tb] : [])];
   const p = spawn(process.execPath, args, { stdio: ['ignore', 'ignore', 'ignore'] });
   current = p;
-  const timer = setTimeout(() => { p.kill(); }, Math.max(1, deadline - Date.now()));
-  p.on('exit', (c, sig) => { clearTimeout(timer); current = null; if (sig) rej(new Error('budget')); else c === 0 ? res() : rej(new Error(`exit ${c}`)); });
+  const timer = deadline === Infinity ? null : setTimeout(() => { p.kill(); }, Math.max(1, deadline - Date.now()));
+  p.on('exit', (c, sig) => { if (timer) clearTimeout(timer); current = null; if (sig) rej(new Error('budget')); else c === 0 ? res() : rej(new Error(`exit ${c}`)); });
 });
 const rowsOf = (file) => JSON.parse(readFileSync(file, 'utf8')).rows;
 
