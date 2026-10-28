@@ -9,10 +9,11 @@ import { explore, exploreMatrix, formatExplore, formatMatrix, replayFinding, typ
 import { redactDsn, UnsafeTargetError } from './guard.js';
 import { renderHtml } from './html-report.js';
 import { initDb } from './initdb.js';
+import { onInterrupt } from './interrupt.js';
 import { loadScenario } from './loader.js';
 import { MAX_REPORT_BYTES, parseReport, serializeReport } from './report.js';
 import { formatRun } from './reporter.js';
-import { createSession, type Isolation } from './runner.js';
+import { createSession, type Isolation, type Session } from './runner.js';
 import { assertReportTarget, checkAllowDirs, resolveInside, writeReportFile } from './safe-paths.js';
 
 const USAGE = `interleave-pg - force concurrent Postgres statements through many interleavings (local throwaway DB only)
@@ -61,6 +62,16 @@ function durationMs(v: string | undefined): number | undefined {
   if (!m) throw new ScenarioError('--time-budget must look like 500ms, 30s or 2m');
   const n = Number(m[1]);
   return m[2] === 'ms' ? n : m[2] === 'm' ? n * 60_000 : n * 1000;
+}
+
+/** Sessions that must be closed (rollback, disconnect, unlock) if the process is interrupted. */
+const openSessions = new Set<Session>();
+async function trackedSession(make: () => Promise<Session>): Promise<Session> {
+  const s = await make();
+  openSessions.add(s);
+  const close = s.close;
+  s.close = async () => { openSessions.delete(s); await close(); };
+  return s;
 }
 
 function roots(allow: string[] | undefined): string[] {
@@ -142,7 +153,7 @@ async function main(argv: string[]): Promise<number> {
     const scenarioAbs = resolve(file);
     const rel = relative(process.cwd(), scenarioAbs);
     opts.scenarioFile = rel.startsWith('..') || isAbsolute(rel) ? scenarioAbs : rel;
-    const open = (isolation: Isolation) => createSession(scenario, { dsn, scenarioDir: dir, isolation, strict: values.strict === true });
+    const open = (isolation: Isolation) => trackedSession(() => createSession(scenario, { dsn, scenarioDir: dir, isolation, strict: values.strict === true }));
 
     if (values.schedule) {
       if (isoArg === 'matrix') throw new ScenarioError('--schedule cannot be combined with --isolation matrix');
@@ -204,7 +215,7 @@ async function main(argv: string[]): Promise<number> {
     if (!saved.scenarioFile) throw new ScenarioError('the report does not name its scenario file');
     const scenarioPath = resolveInside(saved.scenarioFile, rootDirs, 'scenario file');
     const { scenario, dir } = await loadScenario(scenarioPath);
-    const session = await createSession(scenario, { dsn: (values.dsn ?? process.env.INTERLEAVE_DSN) as string, scenarioDir: dir, isolation: saved.isolation });
+    const session = await trackedSession(() => createSession(scenario, { dsn: (values.dsn ?? process.env.INTERLEAVE_DSN) as string, scenarioDir: dir, isolation: saved.isolation }));
     try {
       const r = await replayFinding(session, finding, 3);
       const lines = [
@@ -224,6 +235,8 @@ async function main(argv: string[]): Promise<number> {
   const near = suggestCommand(cmd);
   throw new ScenarioError(`unknown command "${cmd}"${near ? ` (did you mean "${near}"?)` : ''}; see interleave-pg --help`);
 }
+
+onInterrupt(async () => { await Promise.all([...openSessions].map((s) => s.close())); });
 
 main(process.argv.slice(2)).then(
   (code) => exit(code),
