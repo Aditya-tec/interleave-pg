@@ -14,7 +14,7 @@ import { testDsn } from './helpers.js';
  */
 const corpus = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'corpus');
 const entries: { set: string; id: string; dir: string }[] = [];
-for (const set of ['dev', 'heldout', 'heldout-human']) {
+for (const set of ['dev', 'heldout', 'heldout-human', 'hard']) {
   const base = join(corpus, set);
   if (!existsSync(base)) continue;
   for (const id of readdirSync(base).filter((n) => !n.startsWith('_') && !n.startsWith('.')).sort()) {

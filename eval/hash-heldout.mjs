@@ -16,14 +16,14 @@ const set = setArg >= 0 ? process.argv[setArg + 1] : 'heldout';
 const files = [];
 const walk = (dir, top = true) => {
   for (const name of readdirSync(dir).sort()) {
-    if (set === 'heldout-human' && top && (name.startsWith('_') || name.startsWith('.') || !statSync(join(dir, name)).isDirectory())) continue;
+    if (set !== 'heldout' && top && (name.startsWith('_') || name.startsWith('.') || !statSync(join(dir, name)).isDirectory())) continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, false);
     else files.push(p);
   }
 };
 walk(join(root, 'corpus', set));
-if (set === 'heldout') for (const f of ['lib.mjs', 'lib-knex.mjs', 'lib-drizzle.mjs']) files.push(join(root, 'corpus', '_lib', f));
+if (set !== 'heldout-human') for (const f of ['lib.mjs', 'lib-knex.mjs', 'lib-drizzle.mjs']) files.push(join(root, 'corpus', '_lib', f));
 
 const lines = files
   .map((p) => [relative(root, p).split(sep).join('/'), createHash('sha256').update(readFileSync(p).toString('utf8').replace(/\r\n/g, '\n')).digest('hex')])

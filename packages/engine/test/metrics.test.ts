@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { testDsn } from './helpers.js';
 // @ts-ignore the metrics script lives outside the package
-import { percentile, summarize } from '../../../eval/engine-metrics.js';
+import { judgeLimit, percentile, summarize } from '../../../eval/engine-metrics.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const row = (o: Record<string, unknown>) => ({ id: 'x', expect: 'buggy', scope: 'in', outcome: 'hit', explored: 5, runtimeMs: 1000, confirmed: [], unconfirmed: [], ...o });
@@ -95,5 +95,41 @@ export default {
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/\| zz-dummy-scenario \| buggy .*\| hit \|/);
     expect(r.stdout).toMatch(/Set `heldout-human`: 1 scenarios/);
+  });
+});
+
+describe('judging honest-limit scenarios (expected.json fields: message, notice, warning, stoppedBy)', () => {
+  const rep = (o: Record<string, unknown> = {}) => ({
+    violations: [] as any[],
+    warnings: [] as string[],
+    coverage: { stoppedBy: 'complete', exhaustiveWithinBound: true },
+    ...o,
+  });
+  it('message: must match the error text, and there must be an error', () => {
+    expect(judgeLimit({ message: 'cannot see' } as any, undefined, 'NoStatementsError: the tool cannot see this')).toBe(true);
+    expect(judgeLimit({ message: 'cannot see' } as any, undefined, 'something else')).toBe(false);
+    expect(judgeLimit({ message: 'cannot see' } as any, rep() as any, undefined)).toBe(false);
+  });
+  it('notice: a CONFIRMED finding must carry it', () => {
+    const f = (status: string, notice: string) => rep({ violations: [{ status, notice, kind: 'VIOLATION', invariant: 'x' }] }) as any;
+    expect(judgeLimit({ notice: 'N' } as any, f('CONFIRMED', 'N'), undefined)).toBe(true);
+    expect(judgeLimit({ notice: 'N' } as any, f('UNCONFIRMED', 'N'), undefined)).toBe(false);
+    expect(judgeLimit({ notice: 'N' } as any, f('CONFIRMED', 'other'), undefined)).toBe(false);
+  });
+  it('warning: a regex that must match a run-level or finding-level warning', () => {
+    expect(judgeLimit({ warning: 'nondeterministic' } as any, rep({ warnings: ['nondeterministic scenario: x'] }) as any, undefined)).toBe(true);
+    expect(judgeLimit({ warning: 'nondeterministic' } as any, rep({ violations: [{ status: 'CONFIRMED', warnings: ['nondeterministic scenario: y'] }] }) as any, undefined)).toBe(true);
+    expect(judgeLimit({ warning: 'nondeterministic' } as any, rep() as any, undefined)).toBe(false);
+  });
+  it('stoppedBy: the search must have stopped for one of the named reasons and must not claim to be exhaustive', () => {
+    const stopped = (by: string, exhaustive: boolean) => rep({ coverage: { stoppedBy: by, exhaustiveWithinBound: exhaustive } }) as any;
+    expect(judgeLimit({ stoppedBy: ['schedule-budget', 'time-budget'] } as any, stopped('time-budget', false), undefined)).toBe(true);
+    expect(judgeLimit({ stoppedBy: 'schedule-budget' } as any, stopped('time-budget', false), undefined)).toBe(false);
+    expect(judgeLimit({ stoppedBy: 'schedule-budget' } as any, stopped('schedule-budget', true), undefined)).toBe(false);
+  });
+  it('every field that is given must hold, and an expected.json with none of them judges nothing as OK', () => {
+    expect(judgeLimit({ message: 'a', warning: 'b' } as any, rep({ warnings: ['b'] }) as any, 'a')).toBe(true);
+    expect(judgeLimit({ message: 'a', warning: 'b' } as any, rep() as any, 'a')).toBe(false);
+    expect(judgeLimit({} as any, rep() as any, undefined)).toBe(false);
   });
 });

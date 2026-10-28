@@ -19,6 +19,40 @@ interface Expected {
   fix?: string;
   message?: string;
   notice?: string;
+  /** regex that must match a warning (run-level or on any finding) */
+  warning?: string;
+  /** author's derived minimal preemption count for the expected finding (reported next to the observed one, not a gate) */
+  minPreemptions?: number;
+  /** the search must have stopped for one of these reasons and must not claim to be exhaustive */
+  stoppedBy?: string | string[];
+}
+
+interface ReportLike {
+  violations: { status: string; notice?: string; warnings?: string[]; kind?: string; invariant?: string }[];
+  warnings: string[];
+  coverage: { stoppedBy: string; exhaustiveWithinBound: boolean };
+}
+
+/** Did a scope:out scenario behave the way its expected.json says it must? Every given field has to hold; none given = not OK. */
+export function judgeLimit(expected: Expected, report: ReportLike | undefined, error: string | undefined): boolean {
+  const checks: boolean[] = [];
+  if (expected.message) checks.push(!!error && new RegExp(expected.message).test(error));
+  if (expected.notice) {
+    checks.push(
+      !!report &&
+        report.violations.some((v) => v.status === 'CONFIRMED' && v.notice === expected.notice) &&
+        (!expected.invariant || report.violations.some((v) => v.status === 'CONFIRMED' && v.invariant === expected.invariant)),
+    );
+  }
+  if (expected.warning) {
+    const re = new RegExp(expected.warning);
+    checks.push(!!report && (report.warnings.some((w) => re.test(w)) || report.violations.some((v) => (v.warnings ?? []).some((w) => re.test(w)))));
+  }
+  if (expected.stoppedBy) {
+    const allowed = Array.isArray(expected.stoppedBy) ? expected.stoppedBy : [expected.stoppedBy];
+    checks.push(!!report && allowed.includes(report.coverage.stoppedBy) && report.coverage.exhaustiveWithinBound === false);
+  }
+  return checks.length > 0 && checks.every(Boolean);
 }
 
 type Outcome = 'hit' | 'mismatch' | 'miss' | 'clean' | 'false-positive' | 'error' | 'limit-ok' | 'limit-fail';
@@ -30,6 +64,9 @@ interface Row {
   class?: string;
   driver?: string;
   expectedInvariant?: string;
+  expectedMinPreemptions?: number;
+  /** preemptions of the first schedule that showed the expected finding */
+  observedPreemptions?: number;
   outcome: Outcome;
   explored: number | null;
   runtimeMs: number;
@@ -74,6 +111,7 @@ async function runOne(dsn: string, dir: string, expected: Expected, id: string):
     class: expected.class,
     driver: expected.driver,
     expectedInvariant: expected.invariant,
+    ...(expected.minPreemptions !== undefined ? { expectedMinPreemptions: expected.minPreemptions } : {}),
     outcome: 'error',
     explored: null,
     runtimeMs: 0,
@@ -101,16 +139,14 @@ async function runOne(dsn: string, dir: string, expected: Expected, id: string):
     row.explored = report.coverage.explored;
     row.stoppedBy = report.coverage.stoppedBy;
     row.confirmed = report.violations.filter((v) => v.status === 'CONFIRMED').map((v) => `${v.kind}:${v.invariant}`);
+    const hit = report.violations.find((v) => v.status === 'CONFIRMED' && v.invariant === expected.invariant);
+    if (hit) row.observedPreemptions = hit.preemptions;
     row.unconfirmed = report.violations.filter((v) => v.status !== 'CONFIRMED').map((v) => `${v.kind}:${v.invariant}`);
   }
 
   if (expected.scope === 'out') {
     // Honest limits: judged only on whether the tool said what its expected.json requires.
-    let ok = false;
-    if (expected.message) ok = !!row.error && new RegExp(expected.message).test(row.error);
-    else if (expected.notice) {
-      ok = !!report && report.violations.some((v) => v.status === 'CONFIRMED' && v.notice === expected.notice) && (!expected.invariant || row.confirmed.some((c) => c.endsWith(`:${expected.invariant}`)));
-    }
+    const ok = judgeLimit(expected, report as unknown as ReportLike | undefined, row.error);
     row.outcome = ok ? 'limit-ok' : 'limit-fail';
     return row;
   }
@@ -210,11 +246,11 @@ export function markdown(s: Summary, rows: Row[]): string {
   out.push(`| Schedules explored | median ${s.exploredMedian ?? 'n/a'}, p95 ${s.exploredP95 ?? 'n/a'} | reported |`);
   out.push(`| Runtime | median ${sec(s.runtimeMedianMs)}, p95 ${sec(s.runtimeP95Ms)} (local, this machine) | ${g('runtime median <= 10 s')} / ${g('runtime p95 <= 60 s')} (official: CI job) |`);
   out.push('');
-  out.push('| Scenario | Expected | Class | Driver | Outcome | Schedules | Runtime | Notes |');
-  out.push('|---|---|---|---|---|---|---|---|');
+  out.push('| Scenario | Expected | Class | Driver | Outcome | Schedules | Preemptions (derived / observed) | Runtime | Notes |');
+  out.push('|---|---|---|---|---|---|---|---|---|');
   for (const r of rows) {
     const note = r.error ?? r.detail ?? (r.unconfirmed.length ? `unconfirmed: ${r.unconfirmed.join('; ')}` : '');
-    out.push(`| ${r.id} | ${r.expect}${r.scope === 'out' ? ' (out of scope)' : ''} | ${r.class ?? ''} | ${r.driver ?? ''} | ${r.outcome} | ${r.explored ?? '-'} | ${sec(r.runtimeMs)} | ${String(note).replace(/\|/g, '/').slice(0, 160)} |`);
+    out.push(`| ${r.id} | ${r.expect}${r.scope === 'out' ? ' (out of scope)' : ''} | ${r.class ?? ''} | ${r.driver ?? ''} | ${r.outcome} | ${r.explored ?? '-'} | ${r.expectedMinPreemptions ?? '-'} / ${r.observedPreemptions ?? '-'} | ${sec(r.runtimeMs)} | ${String(note).replace(/\|/g, '/').slice(0, 160)} |`);
   }
   return out.join('\n');
 }
