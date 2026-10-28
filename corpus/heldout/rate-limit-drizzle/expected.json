@@ -1,0 +1,1 @@
+{ "id": "rate-limit-drizzle", "expect": "buggy", "scope": "in", "class": "lost-update", "driver": "drizzle", "invariant": "allowed requests never exceed the quota" }

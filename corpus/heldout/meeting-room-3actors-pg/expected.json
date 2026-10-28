@@ -1,0 +1,1 @@
+{ "id": "meeting-room-3actors-pg", "expect": "buggy", "scope": "in", "class": "phantom-booking", "driver": "pg", "invariant": "no two reservations overlap" }

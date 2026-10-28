@@ -1,0 +1,1 @@
+{ "id": "stock-adjust-savepoint-pg", "expect": "buggy", "scope": "in", "class": "lost-update", "driver": "pg", "invariant": "both adjustments applied" }

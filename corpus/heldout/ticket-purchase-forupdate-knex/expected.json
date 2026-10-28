@@ -1,0 +1,1 @@
+{ "id": "ticket-purchase-forupdate-knex", "expect": "safe", "scope": "in", "class": "queue-claim", "driver": "knex", "fix": "for-update" }

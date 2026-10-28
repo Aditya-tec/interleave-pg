@@ -1,0 +1,1 @@
+{ "id": "username-claim-pg-txn", "expect": "buggy", "scope": "in", "class": "check-then-insert", "driver": "pg", "invariant": "usernames are unique" }

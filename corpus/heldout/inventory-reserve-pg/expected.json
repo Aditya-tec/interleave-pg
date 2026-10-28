@@ -1,0 +1,1 @@
+{ "id": "inventory-reserve-pg", "expect": "buggy", "scope": "in", "class": "oversell", "driver": "pg", "invariant": "reserved never exceeds on-hand" }

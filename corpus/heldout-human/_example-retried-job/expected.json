@@ -1,0 +1,8 @@
+{
+  "id": "example-retried-job",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "webhook-duplicate",
+  "driver": "pg",
+  "invariant": "the welcome e-mail is sent once"
+}

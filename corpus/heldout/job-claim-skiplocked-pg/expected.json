@@ -1,0 +1,1 @@
+{ "id": "job-claim-skiplocked-pg", "expect": "safe", "scope": "in", "class": "queue-claim", "driver": "pg", "fix": "skip-locked" }

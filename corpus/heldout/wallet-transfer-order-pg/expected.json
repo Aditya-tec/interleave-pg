@@ -1,0 +1,1 @@
+{ "id": "wallet-transfer-order-pg", "expect": "buggy", "scope": "in", "class": "deadlock", "driver": "pg", "invariant": "no actor aborted by a deadlock" }

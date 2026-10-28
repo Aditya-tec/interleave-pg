@@ -1,0 +1,1 @@
+{ "id": "payment-webhook-pg", "expect": "buggy", "scope": "in", "class": "webhook-duplicate", "driver": "pg", "invariant": "one ledger credit per payment" }

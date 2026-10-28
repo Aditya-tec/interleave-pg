@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS parts CASCADE;
+CREATE TABLE parts (id int PRIMARY KEY, qty int NOT NULL);

@@ -1,0 +1,1 @@
+{ "id": "ticket-purchase-knex", "expect": "buggy", "scope": "in", "class": "queue-claim", "driver": "knex", "invariant": "each seat sold at most once" }

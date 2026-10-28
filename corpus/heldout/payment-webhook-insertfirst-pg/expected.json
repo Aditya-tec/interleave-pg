@@ -1,0 +1,1 @@
+{ "id": "payment-webhook-insertfirst-pg", "expect": "safe", "scope": "in", "class": "webhook-duplicate", "driver": "pg", "fix": "unique-on-conflict" }

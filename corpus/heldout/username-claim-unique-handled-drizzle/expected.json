@@ -1,0 +1,1 @@
+{ "id": "username-claim-unique-handled-drizzle", "expect": "safe", "scope": "in", "class": "check-then-insert", "driver": "drizzle", "fix": "unique-with-error-handling" }
