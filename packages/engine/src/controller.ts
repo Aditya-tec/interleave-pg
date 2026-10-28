@@ -112,10 +112,10 @@ export class Controller {
     if (!st) return Promise.resolve({ ok: false, error: new UnsupportedError(`statement from unknown actor "${actor}"`) });
     if (this.aborted) return Promise.resolve({ ok: false, error: this.aborted });
     if (st.status !== 'RUNNING') {
-      return Promise.resolve({
-        ok: false,
-        error: new UnsupportedError(`UnsupportedError: parallel statements within one actor ("${actor}")`),
-      });
+      // Spec 4.2: abort the whole run; a silent clean report would be wrong.
+      const err = new UnsupportedError(`parallel statements within one actor ("${actor}"): interleave-pg cannot explore code that has two statements in flight at once, so it cannot say anything about this scenario`);
+      this.abort(err);
+      return Promise.resolve({ ok: false, error: err });
     }
     return new Promise<Outcome>((resolve) => {
       st.pending = { client, stmt, execute, resolve };

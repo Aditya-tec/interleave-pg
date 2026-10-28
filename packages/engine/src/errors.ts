@@ -8,7 +8,9 @@ export class UnsupportedError extends Error {
 }
 
 export class NoStatementsError extends Error {
-  constructor(message = 'no statements intercepted: pg resolution mismatch?') {
+  constructor(
+    message = "no statements intercepted: pg resolution mismatch? interleave-pg cannot see database calls that do not go through the app's pg package (for example Prisma's query engine, or a second copy of pg), so it cannot say anything about this code",
+  ) {
     super(message);
     this.name = 'NoStatementsError';
   }

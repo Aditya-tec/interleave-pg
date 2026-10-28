@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { createSession, type Session } from '../src/runner.js';
-import { NoStatementsError, StallError } from '../src/errors.js';
+import { NoStatementsError, StallError, UnsupportedError } from '../src/errors.js';
 import { UnsafeTargetError } from '../src/guard.js';
 import { testDsn } from './helpers.js';
 // @ts-ignore plain .mjs fixtures
@@ -150,9 +150,10 @@ describe('edge cases', () => {
       },
     };
     session = await createSession(scenario as any, { dsn, scenarioDir: fixtures });
-    const r = await session.run(['A', 'B']);
-    expect(r.results[0]!.status).toBe('rejected');
-    expect(r.results[0]!.error!.message).toMatch(/parallel statements within one actor/);
+    // Phase 3: aborts the run (spec 4.2) instead of only rejecting the actor, so a report can never look clean.
+    const err = await session.run(['A', 'B']).catch((e) => e);
+    expect(err).toBeInstanceOf(UnsupportedError);
+    expect(String(err.message)).toMatch(/parallel statements within one actor/);
   });
   it('reports a stall when an actor waits outside the database', async () => {
     const scenario = {

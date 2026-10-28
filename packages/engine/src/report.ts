@@ -23,6 +23,7 @@ export function serializeReport(r: ExploreReport): string {
       preemptions: v.preemptions,
       scheduleIndex: v.scheduleIndex,
       occurrences: v.occurrences,
+      notice: v.notice,
       schedule: v.schedule,
       fingerprint: v.fingerprint,
       timeline: v.timeline.map((s) => ({

@@ -23,6 +23,8 @@ export interface Finding {
   schedule: string[];
   fingerprint: string;
   occurrences: number;
+  /** What this run cannot know (shown on every finding). */
+  notice: string;
   timeline: Step[];
   hints: Hint[];
   warnings: string[];
@@ -76,6 +78,9 @@ export interface ExploreRunOptions {
   clock?: Clock;
   scenarioFile?: string;
 }
+
+export const NOTICE_EXTERNAL_LOCKS =
+  'This run cannot see locks held outside the database. If such a lock serializes these actors in production, this race may not occur there.';
 
 export const DEFAULTS = { maxPreemptions: 3, maxSchedules: 2000, timeBudgetMs: 120_000, confirmRuns: 3, runs: 100, seed: 1 };
 
@@ -154,6 +159,7 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
         schedule: info.choices,
         fingerprint: r.fingerprint,
         occurrences: 1,
+        notice: NOTICE_EXTERNAL_LOCKS,
         timeline: r.steps,
         hints: [],
         warnings: [],
@@ -293,6 +299,7 @@ export function formatExplore(r: ExploreReport): string {
       out.push(`  ${String(s.step).padStart(2)}  ${s.actor.padEnd(5)} ${(s.txn ?? '-').padEnd(4)} ${trunc(s.sql, 48).padEnd(48)} ${params.padEnd(15)} ${trunc(s.result, 50)}`);
       if (s.blockedBy) out.push(`        ^ [BLOCKED] ${s.actor} waited on ${s.blockedBy.length ? s.blockedBy.join(', ') : 'another session'} before this statement completed`);
     }
+    out.push(`  notice: ${f.notice}`);
     for (const h of f.hints) out.push(`  hint (heuristic): ${h.label}: ${h.detail}. Typical fix: ${h.fix}`);
     for (const w of f.warnings) out.push(`  warning: ${w}`);
   }
