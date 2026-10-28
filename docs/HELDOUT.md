@@ -114,3 +114,43 @@ No exploration, metrics or CLI `run` was made on any of the five. (The unadapted
 The final run verifies both hashes first: `node eval/hash-heldout.mjs --verify 4daa9bdf0c9074a99e7a5e47abf42baed360dbbc95a12305089d60655ce78a66` and `node eval/hash-heldout.mjs --set heldout-human --verify d092e96057751c45943bad8603b6f441c9cd343fa68a80da3808623bd30cfd0e`. If the project owner adds more human scenarios, the new hash is appended here before the run.
 
 The final run still waits for the project owner's confirmation that `corpus/heldout-human/` is complete and that the repository is public.
+
+---
+
+# Freeze record for the final measurement (committed BEFORE the run)
+
+| | |
+|---|---|
+| Engine commit (the code that will be measured) | `53701d6e0be83b685a42497258782b0ad42ac7e8` (pushed to `origin/main`; commits after it before the run change documentation only) |
+| Node | v22.16.0 |
+| Postgres | 17.11 (Debian 17.11-1.pgdg13+2), Docker Desktop, `127.0.0.1:5433`, `deadlock_timeout` 300 ms (init-db default) |
+| Date and time of the freeze | 2026-10-28 11:38:03 +0530 |
+| Machine | Windows 11, 12 logical cores (the official runtime gate is the CI measurement, not this machine) |
+| Repository visibility | PUBLIC (`gh repo view Aditya-tec/interleave-pg --json visibility` returned `{"visibility":"PUBLIC"}`) |
+| Working tree at the freeze | clean, equal to `origin/main` |
+
+Hashes verified immediately before this record was written:
+
+```
+$ node eval/hash-heldout.mjs --verify 4daa9bdf0c9074a99e7a5e47abf42baed360dbbc95a12305089d60655ce78a66
+held-out set unchanged (4daa9bdf0c9074a99e7a5e47abf42baed360dbbc95a12305089d60655ce78a66)
+$ node eval/hash-heldout.mjs --set heldout-human --verify d092e96057751c45943bad8603b6f441c9cd343fa68a80da3808623bd30cfd0e
+held-out set unchanged (d092e96057751c45943bad8603b6f441c9cd343fa68a80da3808623bd30cfd0e)
+as-supplied human set in commit 12e48fd: tree sha256 0488bfc6a6b280d63bbf07c58a49f1b5f660c9a826f43f972cd214d1f771379d (matches)
+```
+
+## The exact commands that will be run (once)
+
+Environment for all of them: `NODE_ENV=test`, `INTERLEAVE_DSN` = the local throwaway database `interleave_test` on `127.0.0.1:5433` (password not recorded here), `INTERLEAVE_ADMIN_DSN` = the maintenance database on the same server.
+
+```
+INTERLEAVE_DSN=<admin dsn> node packages/engine/dist/cli.js init-db --name interleave_test
+npm run build
+node node_modules/typescript/bin/tsc -p eval
+node eval/hash-heldout.mjs --verify 4daa9bdf0c9074a99e7a5e47abf42baed360dbbc95a12305089d60655ce78a66
+node eval/hash-heldout.mjs --set heldout-human --verify d092e96057751c45943bad8603b6f441c9cd343fa68a80da3808623bd30cfd0e
+node eval/engine-metrics.js --set heldout       --out eval/results/heldout-2026-10-28/heldout.json       --md eval/results/heldout-2026-10-28/heldout.md
+node eval/engine-metrics.js --set heldout-human --out eval/results/heldout-2026-10-28/heldout-human.json --md eval/results/heldout-2026-10-28/heldout-human.md
+```
+
+stdout and stderr of each metrics command are saved next to its JSON in `eval/results/heldout-2026-10-28/`. Rule: if a command fails for an environmental reason (Docker down, port in use) before producing any scenario result, it may be repeated on the same engine commit; once any scenario has produced a result, every result is reported and nothing is re-run.
