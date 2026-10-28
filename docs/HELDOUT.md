@@ -154,3 +154,27 @@ node eval/engine-metrics.js --set heldout-human --out eval/results/heldout-2026-
 ```
 
 stdout and stderr of each metrics command are saved next to its JSON in `eval/results/heldout-2026-10-28/`. Rule: if a command fails for an environmental reason (Docker down, port in use) before producing any scenario result, it may be repeated on the same engine commit; once any scenario has produced a result, every result is reported and nothing is re-run.
+
+---
+
+# Disclosure: CI explored the human set before the official local run (unintended)
+
+A test of mine (`packages/engine/test/metrics.test.ts`, "heldout-human is picked up with no code change") drops a dummy scenario into `corpus/heldout-human/` and runs the metrics script with `--set heldout-human`. Written when that directory held no scenarios, it was never restricted to the dummy. Once the five human scenarios were in the directory, **every CI test run explored all of them (plus the dummy)**, and the test failed its own assertion ("1 scenarios" expected, "6" found). I did not notice until the cross-version CI run failed.
+
+What happened, in UTC on 2026-10-28:
+
+| When | Event |
+|---|---|
+| 06:07:21 | push of the local commits triggered CI run 40641941250 (engine commit 53701d6); its test step ran on several Postgres/Node jobs |
+| 06:08:34 to 06:09:04 | official local run of the agent-written held-out set |
+| 06:08:48 to 06:08:51 | in run 40641941250 the dummy-pickup test explored `heldout-human` (5 scenarios + dummy) on pg 15/16 jobs |
+| 06:09:13 to 06:09:16 | **official local run of the human set** (the numbers reported in `docs/ENGINE_RESULTS.md`) |
+| later | runs 40642049613, 40642163300 and the dispatch run 40642184146 did the same; all failed on that assertion |
+
+So the human set was explored by CI about 25 seconds before the official local run of it. Consequences, stated plainly:
+
+* **Nothing was used.** I did not read those CI outputs until after the official numbers were produced and committed; no engine code, scenario or expectation changed between them (engine commit `53701d6`, held-out hashes verified unchanged before and after).
+* **The official numbers are still the single local run** (`eval/results/heldout-2026-10-28/`). The CI runs are additional executions of the same engine on the same files; their summary lines (visible in the failing assertion output) agree with the local run (4 of 4 buggy scenarios flagged including the dummy, 0 of 2 safe flagged, 0 unconfirmed). They are not merged into any number.
+* The agent-written set (`corpus/heldout`) was not explored by CI before the local run: that test only touches `heldout-human`.
+* **Fix** (test only, no engine change): the test now passes `--only zz-dummy-scenario`, so a test can never explore the real human scenarios.
+* The intended cross-version run of both held-out sets (workflow dispatch with `heldout=true`) was re-dispatched after this fix.

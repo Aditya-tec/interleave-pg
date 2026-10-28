@@ -86,7 +86,8 @@ export default {
 `,
     );
     writeFileSync(join(dir, 'expected.json'), JSON.stringify({ id: 'zz-dummy-scenario', expect: 'buggy', scope: 'in', class: 'lost-update', driver: 'pg', invariant: 'both increments counted' }));
-    const r = spawnSync(process.execPath, [join(root, 'eval', 'engine-metrics.js'), '--set', 'heldout-human'], {
+    const r = spawnSync(process.execPath, [join(root, 'eval', 'engine-metrics.js'), '--set', 'heldout-human', '--only', 'zz-dummy-scenario'], {
+      // --only: a test must never explore the real human scenarios
       encoding: 'utf8',
       cwd: root,
       env: { ...process.env, INTERLEAVE_DSN: await testDsn(), NODE_ENV: 'test' },
