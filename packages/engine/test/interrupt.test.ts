@@ -93,7 +93,8 @@ describe('Ctrl-C handling (real signal)', () => {
         left = (await watcher.query(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()`)).rows[0].n;
         if (left !== 0) await new Promise((r) => setTimeout(r, 50));
       }
-      expect(left).toBe(0);
+      const rest = (await watcher.query(`SELECT pid, state, left(query, 60) AS query FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()`)).rows;
+      expect(left, `leftover sessions: ${JSON.stringify(rest)}`).toBe(0);
       const lock = await watcher.query(`SELECT pg_try_advisory_lock(hashtext('interleave-pg')) AS got`);
       expect(lock.rows[0].got).toBe(true);
       await watcher.query(`SELECT pg_advisory_unlock(hashtext('interleave-pg'))`);

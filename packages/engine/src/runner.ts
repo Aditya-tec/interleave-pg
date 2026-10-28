@@ -118,6 +118,11 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
   const close = async () => {
     if (closed) return;
     closed = true;
+    // A client in the middle of a statement (Ctrl-C) would hold its locks until the statement ends: cancel it first.
+    try {
+      const pids = [...state.clients].map((c) => c.processID).filter((p) => typeof p === 'number');
+      if (pids.length) await Promise.race([control.query('SELECT pg_cancel_backend(p) FROM unnest($1::int[]) AS p', [pids]), new Promise((r) => setTimeout(r, 1000))]);
+    } catch { /* ignore */ }
     try { if (hook) await rollbackTracked(); } catch { /* ignore */ }
     for (const c of state.clients) { try { await c.end(); } catch { /* ignore */ } }
     hook?.uninstall();

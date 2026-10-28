@@ -24,8 +24,8 @@ describe('examples/gift-card (the README quickstart)', () => {
   it('the README quickstart block has at most 5 lines and ends with this example', async () => {
     const { readFileSync } = await import('node:fs');
     const readme = readFileSync(join(pkg, '..', '..', 'README.md'), 'utf8');
-    const block = /## Quickstart[\s\S]*?```bash\n([\s\S]*?)```/.exec(readme)?.[1] ?? '';
-    const lines = block.split('\n').filter(Boolean);
+    const block = /## Quickstart[\s\S]*?```bash\r?\n([\s\S]*?)```/.exec(readme)?.[1] ?? '';
+    const lines = block.split(/\r?\n/).filter(Boolean);
     expect(lines.length).toBeLessThanOrEqual(5);
     expect(lines[lines.length - 1]).toMatch(/run examples\/gift-card\/scenario\.mjs$/);
   });
