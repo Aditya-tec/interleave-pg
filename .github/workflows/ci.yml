@@ -10,16 +10,20 @@ on:
         default: false
 permissions:
   contents: read
+# A newer push to the same branch cancels the older run. A manual dispatch has its own group, so a push cannot cancel it.
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'auto' }}
+  cancel-in-progress: true
 jobs:
   test:
     name: test (pg ${{ matrix.pg }}, node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        # Postgres 14 (final release 2026-11-12) is not tested; 19 is still a release candidate.
-        pg: [15, 16, 17, 18]
-        node: [20, 22]
+      # The full Node x Postgres matrix runs on pushes to main and on manual dispatch; every other branch and pull
+      # request runs only Node 22 + Postgres 17 (the designated runtime job). Postgres 14 (final release 2026-11-12)
+      # is not tested; 19 is still a release candidate.
+      matrix: ${{ fromJSON((github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && '{"pg":[15,16,17,18],"node":[20,22]}' || '{"pg":[17],"node":[22]}') }}
     services:
       postgres:
         image: postgres:${{ matrix.pg }}
