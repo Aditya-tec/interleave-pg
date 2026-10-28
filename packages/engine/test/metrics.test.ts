@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { testDsn } from './helpers.js';
 // @ts-ignore the metrics script lives outside the package
-import { judgeLimit, percentile, summarize } from '../../../eval/engine-metrics.js';
+import { judgeLimit, markdown, percentile, summarize } from '../../../eval/engine-metrics.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const row = (o: Record<string, unknown>) => ({ id: 'x', expect: 'buggy', scope: 'in', outcome: 'hit', explored: 5, runtimeMs: 1000, confirmed: [], unconfirmed: [], ...o });
@@ -136,5 +136,27 @@ describe('judging honest-limit scenarios (expected.json fields: message, notice,
     expect(judgeLimit({ message: 'a', warning: 'b' } as any, rep({ warnings: ['b'] }) as any, 'a')).toBe(true);
     expect(judgeLimit({ message: 'a', warning: 'b' } as any, rep() as any, 'a')).toBe(false);
     expect(judgeLimit({} as any, rep() as any, undefined)).toBe(false);
+  });
+});
+
+
+describe('small sets are reported as counts, not percentages (docs/METRICS_v2.md)', () => {
+  const r = (id: string, o: Record<string, unknown> = {}) => row({ id, ...o });
+  const metricLines = (md: string) => md.split('\n').filter((l) => /^\| (Recall|False positives|False-positive|Confirmation)/.test(l));
+  it('fewer than 20 scenarios: counts only, with the sample size stated', () => {
+    const rows = [r('a'), r('b'), r('c', { expect: 'safe', outcome: 'clean' })];
+    const md = markdown(summarize('small', rows as any), rows as any);
+    expect(md).toMatch(/\| Recall \| 2 of 2 in-scope buggy/);
+    expect(md).toMatch(/\| False positives \| 0 of 1 in-scope safe/);
+    expect(md).toMatch(/small sample/i);
+    expect(metricLines(md).join('')).not.toMatch(/%/);
+  });
+  it('20 or more scenarios keep percentages next to the counts', () => {
+    const rows = Array.from({ length: 20 }, (_, i) => r('s' + i));
+    expect(markdown(summarize('big', rows as any), rows as any)).toMatch(/\| Recall \| 100\.0% \(20\/20/);
+  });
+  it('the observed preemption count of the hit is recorded next to the derived one', () => {
+    const rows = [r('p', { expectedMinPreemptions: 2, observedPreemptions: 2 })];
+    expect(markdown(summarize('x', rows as any), rows as any)).toMatch(/\| 2 \/ 2 \|/);
   });
 });

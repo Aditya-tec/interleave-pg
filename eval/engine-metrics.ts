@@ -244,10 +244,18 @@ export function markdown(s: Summary, rows: Row[]): string {
   out.push('| Metric | Value | Gate |');
   out.push('|---|---|---|');
   const g = (k: string) => (s.gates[k] === null ? 'n/a' : s.gates[k] ? 'PASS' : 'FAIL');
-  out.push(`| Recall | ${pct(s.recall)} (${s.hits}/${s.inScopeBuggy} in-scope buggy; ${s.mismatches} mismatch, ${s.misses} miss) | ${g('recall >= 90%')} |`);
-  out.push(`| False-positive rate | ${pct(s.fpRate)} (${s.falsePositives}/${s.inScopeSafe} in-scope safe; ${s.safeErrors} safe errors) | ${g('false positives == 0')} |`);
-  out.push(`| Confirmation rate | ${pct(s.confirmationRate)} (${s.confirmedFindings} confirmed, ${s.unconfirmedFindings} unconfirmed) | ${g('confirmation 100%')} |`);
+  const small = s.scenarios < 20;
+  if (small) {
+    out.push(`| Recall | ${s.hits} of ${s.inScopeBuggy} in-scope buggy hit (${s.mismatches} mismatches, ${s.misses} misses) | ${g('recall >= 90%')} |`);
+    out.push(`| False positives | ${s.falsePositives} of ${s.inScopeSafe} in-scope safe flagged (${s.safeErrors} safe errors) | ${g('false positives == 0')} |`);
+    out.push(`| Confirmation | ${s.confirmedFindings} confirmed, ${s.unconfirmedFindings} unconfirmed | ${g('confirmation 100%')} |`);
+  } else {
+    out.push(`| Recall | ${pct(s.recall)} (${s.hits}/${s.inScopeBuggy} in-scope buggy; ${s.mismatches} mismatch, ${s.misses} miss) | ${g('recall >= 90%')} |`);
+    out.push(`| False-positive rate | ${pct(s.fpRate)} (${s.falsePositives}/${s.inScopeSafe} in-scope safe; ${s.safeErrors} safe errors) | ${g('false positives == 0')} |`);
+    out.push(`| Confirmation rate | ${pct(s.confirmationRate)} (${s.confirmedFindings} confirmed, ${s.unconfirmedFindings} unconfirmed) | ${g('confirmation 100%')} |`);
+  }
   out.push(`| Schedules explored | median ${s.exploredMedian ?? 'n/a'}, p95 ${s.exploredP95 ?? 'n/a'} | reported |`);
+  if (small) out.push(`| Sample | small sample: ${s.scenarios} scenarios (fewer than 20); quote the counts, not rates | n/a |`);
   out.push(`| Runtime | median ${sec(s.runtimeMedianMs)}, p95 ${sec(s.runtimeP95Ms)} (local, this machine) | ${g('runtime median <= 10 s')} / ${g('runtime p95 <= 60 s')} (official: CI job) |`);
   out.push('');
   out.push('| Scenario | Expected | Class | Driver | Outcome | Schedules | Preemptions (derived / observed) | Runtime | Notes |');

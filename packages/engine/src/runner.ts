@@ -98,6 +98,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
   const state: HookState = newHookState(target);
   let hook: Hook | undefined;
   let runId = 0;
+  const setupWarnings: string[] = [];
   let ctx: any = {};
   let closed = false;
 
@@ -133,8 +134,22 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
 
     hook = installHook(pg, state);
     if (scenario.schema) {
+      // The scenario brings its own schema: start from a clean slate for ITS tables only (never any other table, never
+      // the marker). Without a schema the user's migrations own the tables and they are only truncated, never dropped.
+      const publicTables = async () =>
+        new Set<string>(
+          (await control.query("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')")).rows.map((r: any) => r.relname as string),
+        );
+      const before = await publicTables();
+      if (scenario.tables.length) await control.query(`DROP TABLE IF EXISTS ${scenario.tables.map(quoteTable).join(', ')} CASCADE`);
       const file = resolve(opts.scenarioDir, scenario.schema);
       await control.query(readFileSync(file, 'utf8'));
+      const listed = new Set(scenario.tables.map((t) => t.split('.').pop()!));
+      for (const t of await publicTables()) {
+        if (!before.has(t) && !listed.has(t) && t !== 'interleave_marker') {
+          setupWarnings.push(`the schema creates table "${t}" which is not listed in "tables"; it is not reset between schedules and not dropped between scenarios`);
+        }
+      }
     }
     ctx = scenario.setup ? await scenario.setup({ dsn: opts.dsn }) : {};
     if (state.unsafe) throw state.unsafe;
@@ -205,7 +220,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
     if (controller.steps.length === 0) throw new NoStatementsError();
 
     const results = ids.map((id) => controller.results.get(id)!);
-    warnings.push(...controller.warnings, ...state.warnings);
+    warnings.push(...setupWarnings, ...controller.warnings, ...state.warnings);
     const pids = [...state.clients].map((c) => c.processID).filter((p) => typeof p === 'number');
     const openTxnActors = new Set<string>();
     if (pids.length) {

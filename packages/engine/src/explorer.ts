@@ -40,6 +40,16 @@ export interface Coverage {
   runs?: number;
   distinct?: number;
   serialReferenceRuns: number;
+  /** Number of actors in the scenario. */
+  actors: number;
+  /** How many explored schedules had 0, 1, 2 ... preemptions. */
+  schedulesByPreemptions: number[];
+}
+
+/** Is the serial-equivalence oracle trustworthy for this scenario? */
+export interface OracleStatus {
+  status: 'ok' | 'unreliable' | 'off';
+  reason?: string;
 }
 
 export interface ExploreStats {
@@ -57,6 +67,7 @@ export interface ExploreReport {
   target: { host: string; port: number; db: string; isolation: Isolation };
   coverage: Coverage;
   oracles: string[];
+  oracle: OracleStatus;
   violations: Finding[];
   warnings: string[];
   /** Informational: not findings (for example an actor rejected by a UNIQUE constraint). */
@@ -122,12 +133,29 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
   const useSerial = o.serialOracle ?? sopts.serialOracle ?? true;
   const { analyze, serialRuns } = createAnalyzer(session, useSerial);
 
+  // ---- is the serial oracle trustworthy? Run the default serial schedule twice and compare ----------------
+  let oracle: OracleStatus = useSerial ? { status: 'ok' } : { status: 'off' };
+  if (useSerial) {
+    const sig = (r: RunResult) => JSON.stringify([r.snapshotHash, toOutcome(r).results]);
+    const first = await session.execute({ chooser: serialChooser(session.actorIds), invariants: false, snapshot: true });
+    const second = await session.execute({ chooser: serialChooser(session.actorIds), invariants: false, snapshot: true });
+    if (sig(first) !== sig(second)) {
+      oracle = {
+        status: 'unreliable',
+        reason:
+          'two serial runs of the same schedule produced different outcomes (random ids, timestamps, Date.now() or random return values in the data or in the actors\' results); list generated columns in ignoreColumns or make the actors return stable values',
+      };
+    }
+  }
+
   // ---- exploration -------------------------------------------------------------------------------------
   const found = new Map<string, Finding & { _hintsFrom: Step[] }>();
   const warnings = new Set<string>();
   const notes = new Set<string>();
   const stats: ExploreStats = { abortCodes: [], blockedSeen: false, constraintErrors: false, violatingSchedules: 0 };
   const aborts = new Set<string>();
+  const byPreemptions: number[] = [];
+  const ABORT_NAMES: Record<string, string> = { '40001': 'serialization_failure', '40P01': 'deadlock_detected' };
 
   const onSchedule = async (info: { index: number; choices: string[]; preemptions: number }, r: RunResult) => {
     for (const w of r.warnings) warnings.add(w);
@@ -136,12 +164,28 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
         notes.add(`actor ${x.actor} rejected by constraint ${x.error.constraint ? '"' + x.error.constraint + '"' : '(unnamed)'}; if the app does not handle this, users see an error`);
       }
     }
+    for (const x of r.results) {
+      const code = x.error?.code;
+      if (code === '40001' || code === '40P01') {
+        notes.add(`actor ${x.actor} aborted by the database (${code} ${ABORT_NAMES[code]}); if the app does not retry, users see an error`);
+      }
+    }
+    byPreemptions[info.preemptions] = (byPreemptions[info.preemptions] ?? 0) + 1;
     for (const s of r.steps) {
       if (s.blockedBy) stats.blockedSeen = true;
       if (s.errorCode && RETRIABLE_CODES.has(s.errorCode)) aborts.add(s.errorCode);
       if (s.errorCode?.startsWith('23')) stats.constraintErrors = true;
     }
-    const candidates = await analyze(r);
+    let candidates = await analyze(r, oracle.status === 'ok');
+    if (oracle.status === 'ok' && info.preemptions === 0 && candidates.some((c) => c.kind === 'ANOMALY')) {
+      // A serial schedule cannot be non-serializable: the oracle is wrong about this scenario, so it is not a race.
+      oracle = {
+        status: 'unreliable',
+        reason: 'a serial schedule (0 preemptions) was reported as non-serializable, which is impossible; the scenario\'s outcomes are not reproducible (random ids, timestamps or random values depending on the order)',
+      };
+      for (const k of [...found.keys()]) if (k.startsWith('ANOMALY:')) found.delete(k);
+      candidates = candidates.filter((c) => c.kind !== 'ANOMALY');
+    }
     if (candidates.length) stats.violatingSchedules++;
     for (const c of candidates) {
       const key = `${c.kind}:${c.invariant}`;
@@ -175,10 +219,10 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
     const runs = o.runs ?? DEFAULTS.runs;
     const seed = o.seed ?? DEFAULTS.seed;
     const s = await exploreRandom(exec, { runs, seed, timeBudgetMs: o.timeBudgetMs }, clock, onSchedule);
-    coverage = { explored: s.explored, preemptionBound: null, exhaustiveWithinBound: false, stoppedBy: s.stoppedBy, strategy: 'random', seed, runs, distinct: s.distinct, serialReferenceRuns: serialRuns() };
+    coverage = { explored: s.explored, preemptionBound: null, exhaustiveWithinBound: false, stoppedBy: s.stoppedBy, strategy: 'random', seed, runs, distinct: s.distinct, serialReferenceRuns: serialRuns(), actors: session.actorIds.length, schedulesByPreemptions: Array.from(byPreemptions, (n) => n ?? 0) };
   } else {
     const s = await exploreBounded(exec, { maxPreemptions, maxSchedules, timeBudgetMs }, clock, onSchedule);
-    coverage = { explored: s.explored, preemptionBound: maxPreemptions, exhaustiveWithinBound: s.exhaustive, stoppedBy: s.stoppedBy, strategy: 'dfs', serialReferenceRuns: serialRuns() };
+    coverage = { explored: s.explored, preemptionBound: maxPreemptions, exhaustiveWithinBound: s.exhaustive, stoppedBy: s.stoppedBy, strategy: 'dfs', serialReferenceRuns: serialRuns(), actors: session.actorIds.length, schedulesByPreemptions: Array.from(byPreemptions, (n) => n ?? 0) };
   }
   coverage.serialReferenceRuns = serialRuns();
   stats.abortCodes = [...aborts].sort();
@@ -194,7 +238,7 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
       if (r.decisions.some((d) => d.diverged) && !f.warnings.some((w) => w.includes('diverged'))) {
         f.warnings.push('nondeterministic scenario: the replay diverged from the saved schedule');
       }
-      const cands = await analyze(r);
+      const cands = await analyze(r, oracle.status === 'ok');
       if (cands.some((c) => c.kind === f.kind && c.invariant === f.invariant)) reproduced++;
     }
     f.confirmed = `${reproduced}/${confirmRuns}`;
@@ -202,6 +246,7 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
     f.hints = classify(f._hintsFrom);
   }
 
+  if (oracle.status === 'unreliable') for (const k of [...found.keys()]) if (k.startsWith('ANOMALY:')) found.delete(k);
   const violations = [...found.values()].map(({ _hintsFrom, ...f }) => f as Finding);
   const report: ExploreReport = {
     tool: 'interleave-pg',
@@ -210,7 +255,8 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
     ...(o.scenarioFile ? { scenarioFile: o.scenarioFile } : {}),
     target: { host: session.target.host, port: session.target.port, db: session.target.database, isolation: session.isolation },
     coverage,
-    oracles: ['invariants', ...(useSerial ? ['serial-equivalence'] : [])],
+    oracles: ['invariants', ...(useSerial ? [oracle.status === 'ok' ? 'serial-equivalence' : 'serial-equivalence (UNRELIABLE, suppressed)'] : [])],
+    oracle,
     violations,
     warnings: [...warnings].sort(),
     notes: [...notes].sort(),
@@ -287,6 +333,9 @@ export function formatExplore(r: ExploreReport): string {
   out.push(`Target:   ${r.target.host}:${r.target.port}/${r.target.db}   isolation: ${r.target.isolation}`);
   out.push(`Strategy: ${r.coverage.strategy === 'dfs' ? 'iterative context bounding (0, 1, 2 ... preemptions), DFS' : `seeded random scheduling (seed ${r.coverage.seed})`}`);
   out.push(`Oracles:  ${r.oracles.join(', ')}`);
+  if (r.oracle.status === 'unreliable') {
+    out.push(`WARNING: the serial-equivalence oracle is UNRELIABLE for this scenario: ${r.oracle.reason}. ANOMALY findings are suppressed; findings from your invariants are unaffected.`);
+  }
   for (const f of r.violations) {
     out.push('');
     const head = f.status === 'CONFIRMED' ? `CONFIRMED (${f.confirmed})` : `UNCONFIRMED (flaky) [${f.confirmed} replays reproduced it; not counted as a finding]`;
@@ -320,6 +369,25 @@ export function formatExplore(r: ExploreReport): string {
     out.push(`${plural(confirmedN, 'confirmed finding')} in ${plural(c.explored, 'schedule')} explored.`);
   }
   if (c.stoppedBy !== 'complete') out.push(`The search stopped early (${c.stoppedBy}); it is not exhaustive.`);
+  if (r.violations.length === 0 && c.strategy === 'dfs') {
+    const k = c.preemptionBound ?? 0;
+    if (c.stoppedBy !== 'complete') {
+      out.push('To search further raise the budget: --max-schedules N or --time-budget 300s.');
+    } else if (k === 0) {
+      out.push('Only serial schedules were run (bound 0), so no interleaving was tried. Use --max-preemptions 1 (or higher) to look for races.');
+    } else {
+      const lv = c.schedulesByPreemptions;
+      const last = lv[k] ?? 0;
+      const prev = lv[k - 1] ?? 0;
+      const growth = last > 0 && prev > 0 ? ` Going from bound ${k - 1} to ${k} multiplied the number of schedules by about ${(last / prev).toFixed(1)} in this run, so expect a similar or larger factor again.` : '';
+      out.push(
+        `Bugs that need more than ${k} preemptions were not searched for. To look deeper use --max-preemptions ${k + 1}; schedules at each preemption level so far: ${lv.map((n, i) => `${i}: ${n}`).join(', ')}.${growth}`,
+      );
+    }
+    if (c.actors >= 3) {
+      out.push(`With ${c.actors} actors the number of schedules grows steeply with the bound; a deeper run may hit the schedule budget. If it does, try --strategy random --runs 500, or give each actor fewer statements.`);
+    }
+  }
   out.push(coverageLine(c));
   return out.join('\n');
 }
@@ -355,9 +423,9 @@ export function createAnalyzer(session: Session, useSerial: boolean) {
     }
     reference.set(key, keys);
   };
-  const analyze = async (r: RunResult): Promise<Candidate[]> => {
+  const analyze = async (r: RunResult, withSerial = true): Promise<Candidate[]> => {
     const out: Candidate[] = r.violations.map((v) => ({ kind: 'VIOLATION' as const, invariant: v.invariant, detail: v.detail }));
-    if (useSerial && r.snapshotHash) {
+    if (useSerial && withSerial && r.snapshotHash) {
       const outcome = toOutcome(r);
       const aborted = rejectedActors(outcome.results, r.openTxnActors);
       const remaining = Object.keys(outcome.results).filter((a) => !aborted.includes(a)).sort();

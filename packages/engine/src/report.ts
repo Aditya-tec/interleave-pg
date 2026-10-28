@@ -6,6 +6,7 @@ export const MAX_REPORT_BYTES = 1024 * 1024;
 /** Appendix B shape, plus the few fields replay needs. */
 export function serializeReport(r: ExploreReport): string {
   const out = {
+    schemaVersion: 1,
     tool: r.tool,
     version: r.version,
     scenario: r.scenario,
@@ -13,6 +14,7 @@ export function serializeReport(r: ExploreReport): string {
     target: { host: r.target.host, port: r.target.port, db: r.target.db, isolation: r.target.isolation },
     coverage: r.coverage,
     oracles: r.oracles,
+    oracle: r.oracle,
     violations: r.violations.map((v) => ({
       id: v.id,
       kind: v.kind,
