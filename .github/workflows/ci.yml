@@ -62,6 +62,16 @@ jobs:
           node eval/engine-metrics.js --set dev --out eval/results/ci-dev.json --md eval/results/ci-dev.md
           echo "METRICS_SUMMARY pg=${{ matrix.pg }} node=${{ matrix.node }} $(node -e "const s=require('./eval/results/ci-dev.json').summary;console.log(JSON.stringify({recall:s.recall,fpRate:s.fpRate,confirmation:s.confirmationRate,exploredMedian:s.exploredMedian,exploredP95:s.exploredP95,runtimeMedianMs:s.runtimeMedianMs,runtimeP95Ms:s.runtimeP95Ms}))")"
           if [ "$DESIGNATED_RUNTIME_JOB" = "true" ]; then node eval/check-gates.mjs eval/results/ci-dev.json --runtime; else node eval/check-gates.mjs eval/results/ci-dev.json; fi
+      # Regression check for the engine itself: the adversarial dev set (32 scenarios, run in file order, including the stall
+      # scenarios that leave an abandoned actor behind) must come out exactly as recorded, every scenario, not just above the
+      # 90% recall gate. The stale-statement bug of Phase 4 (one miss of 14 = 92.9%) would have passed that gate. Pushes to
+      # main and manual dispatch only; other branches and pull requests skip it to save minutes.
+      - name: Adversarial dev set (hard), every scenario must be as expected
+        if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          export INTERLEAVE_DSN="${INTERLEAVE_ADMIN_DSN%/postgres}/interleave_test"
+          node eval/engine-metrics.js --set hard --out eval/results/ci-hard.json --md eval/results/ci-hard.md
+          node eval/check-gates.mjs eval/results/ci-hard.json --every-scenario
       - name: Held-out sets (only on request; cross-version report, never used to tune)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.heldout }}
         run: |
@@ -76,6 +86,8 @@ jobs:
 
   # The README quickstart, run exactly as written, in a clean checkout with no node_modules and no service container
   # (the block starts its own Postgres with docker compose). Timed: the acceptance criterion is under 5 minutes.
+  # NOTE: the block clones the default branch (main) from GitHub, so a manual dispatch from another branch still tests
+  # main's README and code, not that branch's. Only a run on main proves a change to the quickstart itself.
   quickstart:
     name: README quickstart (clean checkout, node 22, timed)
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'

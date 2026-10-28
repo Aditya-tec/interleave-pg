@@ -1,5 +1,12 @@
 # Engine results (Phase 3)
 
+> **NOTE added 2026-10-28 (after Phase 4): The numbers in this file predate the stale-statement fix.** Every number in this file is unchanged from when it was recorded.
+>
+> * **The bug.** The engine abandons a run when an actor stalls outside the database (for example a timer longer than the 3 s stall limit). The abandoned actor keeps running. If it later issued a statement through the patched `pg` client, that statement was executed under the *next* scenario's controller as if it belonged to that run, and run ids restarted at 1 in every session, so the engine could not tell it was stale. The result was a spurious `UnsupportedError: parallel statements within one actor` in an innocent scenario, or a stray write in its data.
+> * **How it showed up.** The first post-Phase-4 run of the adversarial set missed `hard/queue-claim-select-update` right after the stall scenario `limit-timer-wait`. It happened in **1 of 3 full hard-set runs** (and in none of 40 runs of the scenario alone), so it depended on timing. The bug has been in the engine since Phase 3, so the recorded results were produced by an engine that could have it. They show no sign of it (every recorded outcome matched its expectation, and only a scenario that follows a stall scenario can be hit), but I cannot prove that no earlier run was luckily unaffected, so read them as "correct when recorded, timing-dependent in principle", not as a stability claim.
+> * **The fix.** Commit `762fbf2`: run ids are unique per process and the hook rejects a statement from an earlier run (`StaleRunError`) without executing it. Regression test: `packages/engine/test/stale-actor.test.ts`. After the fix every set was rerun (`eval/results/post-phase4-after-stale-fix-2026-10-28/`) and the stability proof in `eval/results/stability-2026-10-28/` shows identical outcomes and schedule counts across repeated runs (see `docs/phase-4-report.md`).
+> * **What the held-out freeze covered.** The engine freeze of the held-out protocol applied only to the one-shot held-out run recorded here; it was never a promise that the engine was bug-free. The post-fix runs are regression checks on data that is now development data, not new held-out results.
+
 Definitions are in [METRICS.md](METRICS.md) (committed before the first measurement, not edited since). The held-out protocol, hashes, freeze record and one disclosed incident are in [HELDOUT.md](HELDOUT.md). Raw outputs: `eval/results/`.
 
 **How to read the numbers.** Three sets are reported and never merged:
