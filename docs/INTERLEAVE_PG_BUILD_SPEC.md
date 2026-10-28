@@ -216,14 +216,22 @@ export default defineScenario({
 
 CLI:
 ```
-interleave-pg init-db [--name interleave_dev] [--compose]
+interleave-pg init-db [--name interleave_dev] [--compose] [--deadlock-timeout 300ms]
 interleave-pg run <scenario> [--isolation default|rc|rr|ser|matrix] [--max-preemptions K]
-                         [--max-schedules N] [--time-budget 120s] [--strategy dfs|random --seed N]
-                         [--json out.json] [--html out.html] [--strict]
-interleave-pg replay <report.json> [--violation <id>]
+                         [--max-schedules N] [--time-budget 120s] [--strategy dfs|random --seed N --runs M]
+                         [--schedule A,B,A,B]            # one forced schedule instead of exploring
+                         [--json out.json] [--allow-dir DIR]... [--html out.html] [--strict]
+interleave-pg replay <report.json> [--violation <id>] [--allow-dir DIR]...
 interleave-pg doctor            # checks Node, Postgres reachability/version, marker table, pg resolution
 ```
-DSN only from `--dsn` or `INTERLEAVE_DSN` (never implicitly from `DATABASE_URL`).
+DSN only from `--dsn` or `INTERLEAVE_DSN` (never implicitly from `DATABASE_URL`). `--html` and `--strict` arrive in Phase 4.
+
+File access rules (S10, implemented and tested in Phase 3). Reports and scenarios named on the command line, and every
+`--json` output, may only live inside the working directory or inside a directory named with `--allow-dir`:
+- paths are resolved to real paths before they are checked; a path that reaches its root only through `..`, an absolute path elsewhere, or **any symbolic link or directory junction** on the way (including the final component) is refused;
+- an `--allow-dir` must exist, must be a real directory (not a link), and may never be a filesystem or drive root or the user's home directory;
+- `--json` requires a `.json` name, refuses a directory, and refuses to overwrite an existing file that does not parse as an interleave-pg report (so `package.json`, notes and source files are never touched); the file is written to a temporary file in the same directory and renamed into place;
+- reports are limited to 1 MiB, validated against a strict schema, and never evaluated.
 
 ---
 

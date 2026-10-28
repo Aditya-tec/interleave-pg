@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { readFileSync, statSync } from 'node:fs';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { doctor } from './doctor.js';
 import { ScenarioError } from './errors.js';
@@ -11,7 +11,7 @@ import { loadScenario } from './loader.js';
 import { MAX_REPORT_BYTES, parseReport, serializeReport } from './report.js';
 import { formatRun } from './reporter.js';
 import { createSession, type Isolation } from './runner.js';
-import { resolveInside } from './safe-paths.js';
+import { assertReportTarget, checkAllowDirs, resolveInside, writeReportFile } from './safe-paths.js';
 
 const USAGE = `interleave-pg - force concurrent Postgres statements through many interleavings (local throwaway DB only)
 
@@ -62,13 +62,11 @@ function durationMs(v: string | undefined): number | undefined {
 }
 
 function roots(allow: string[] | undefined): string[] {
-  return [process.cwd(), ...(allow ?? []).map((d) => resolve(d))];
+  return [process.cwd(), ...checkAllowDirs(allow ?? [])];
 }
 
 function writeReport(path: string, text: string, rootDirs: string[]): void {
-  const target = resolveInside(path, rootDirs, 'report path');
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, text);
+  writeReportFile(path, text, rootDirs);
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -132,7 +130,7 @@ async function main(argv: string[]): Promise<number> {
       runs: intOpt('runs', values.runs, 1),
     };
     const rootDirs = roots(values['allow-dir']);
-    if (values.json) resolveInside(values.json, rootDirs, 'report path'); // fail before doing any work
+    if (values.json) assertReportTarget(values.json, rootDirs); // fail before doing any work
     const dsn = (values.dsn ?? process.env.INTERLEAVE_DSN) as string;
     const { scenario, dir } = await loadScenario(file);
     const scenarioAbs = resolve(file);
