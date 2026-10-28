@@ -23,7 +23,7 @@ Usage:
                     [--json out.json] [--html out.html] [--allow-dir DIR]
   interleave-pg run <scenario.mjs> --schedule A,B,A,B        (one forced schedule)
   interleave-pg replay <report.json> [--violation v1] [--allow-dir DIR]
-  interleave-pg doctor
+  interleave-pg doctor [scenario.mjs] [--allow-dir DIR]
 
 The target database comes only from --dsn or INTERLEAVE_DSN (never DATABASE_URL).
 Exit codes: 0 no finding in the explored schedules, 1 confirmed violation, 2 tool/scenario error,
@@ -92,10 +92,11 @@ async function main(argv: string[]): Promise<number> {
   }
 
   if (cmd === 'doctor') {
-    const { values } = parseArgs({ args: rest, options: { ...common } });
-    const r = await doctor(values.dsn ?? process.env.INTERLEAVE_DSN, process.cwd());
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { ...common, 'allow-dir': { type: 'string', multiple: true } } });
+    const scenarioFile = positionals[0] ? resolveInside(positionals[0], roots(values['allow-dir']), 'scenario file') : undefined;
+    const r = await doctor(values.dsn ?? process.env.INTERLEAVE_DSN, process.cwd(), scenarioFile);
     out(r.lines.join('\n'));
-    return r.ok ? 0 : 2;
+    return r.ok ? 0 : r.refused ? 3 : 2;
   }
 
   if (cmd === 'run') {
