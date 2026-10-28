@@ -30,3 +30,11 @@ describe('examples/gift-card (the README quickstart)', () => {
     expect(lines[lines.length - 1]).toMatch(/run examples\/gift-card\/scenario\.mjs$/);
   });
 });
+
+describe('clean clone', () => {
+  it('the root build script relinks the interleave-pg bin (npm ci runs before dist exists, so npx would not find it)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const root = JSON.parse(readFileSync(join(pkg, '..', '..', 'package.json'), 'utf8'));
+    expect(root.scripts.build).toMatch(/npm rebuild interleave-pg/);
+  });
+});
