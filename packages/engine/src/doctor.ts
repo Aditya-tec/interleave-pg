@@ -9,7 +9,7 @@ export interface DoctorResult {
   refused: boolean;
 }
 
-const COMPOSE_FIX = 'start the local database with `interleave-pg init-db --compose > docker-compose.yml && docker compose up -d`, then run `interleave-pg init-db`';
+const COMPOSE_FIX = 'start the local database with `interleave-pg init-db --compose > docker-compose.yml && docker compose up -d --wait`, then run `interleave-pg init-db`';
 
 /**
  * Checks the setup and says what to do about every problem. Never throws for a misconfiguration: each one becomes a

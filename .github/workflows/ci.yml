@@ -73,3 +73,39 @@ jobs:
             fi
           done
       - run: npm audit --omit=dev
+
+  # The README quickstart, run exactly as written, in a clean checkout with no node_modules and no service container
+  # (the block starts its own Postgres with docker compose). Timed: the acceptance criterion is under 5 minutes.
+  quickstart:
+    name: README quickstart (clean checkout, node 22, timed)
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Extract the quickstart block from README.md
+        run: |
+          awk '/^## Quickstart/{f=1;next} f&&/^```bash/{b=1;next} b&&/^```/{exit} b' README.md > "$RUNNER_TEMP/quickstart.sh"
+          echo "--- quickstart block ---"; cat "$RUNNER_TEMP/quickstart.sh"
+          test "$(grep -c . "$RUNNER_TEMP/quickstart.sh")" -le 5 || { echo "the quickstart has more than 5 commands"; exit 1; }
+      - name: Run it in an empty directory and time it
+        run: |
+          mkdir "$RUNNER_TEMP/clean" && cd "$RUNNER_TEMP/clean"
+          start=$(date +%s)
+          set +e
+          bash -e "$RUNNER_TEMP/quickstart.sh" 2>&1 | tee "$RUNNER_TEMP/quickstart.out"
+          code=${PIPESTATUS[0]}
+          set -e
+          secs=$(( $(date +%s) - start ))
+          echo "quickstart finished in ${secs}s with exit code ${code}"
+          echo "README quickstart: ${secs}s (limit 300s), final command exit code ${code} (expected 1: a confirmed violation)" >> "$GITHUB_STEP_SUMMARY"
+          test "$code" = "1"
+          grep -F "CONFIRMED (3/3) VIOLATION: never redeem more than the card holds" "$RUNNER_TEMP/quickstart.out"
+          grep -F "Coverage: explored" "$RUNNER_TEMP/quickstart.out"
+          test "$secs" -le 300
+      - name: Stop the database
+        if: always()
+        run: docker compose -f "$RUNNER_TEMP/clean/interleave-pg/docker-compose.yml" down -v || true

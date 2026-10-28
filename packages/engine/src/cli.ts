@@ -41,6 +41,11 @@ services:
     environment:
       POSTGRES_PASSWORD: interleave-pg
       POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     tmpfs:
       - /var/lib/postgresql/data
 `;
