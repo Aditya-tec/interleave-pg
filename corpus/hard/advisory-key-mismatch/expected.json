@@ -1,0 +1,10 @@
+{
+  "id": "advisory-key-mismatch",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "advisory-lock-key-mismatch",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "deposit and withdrawal both applied",
+  "notes": "Derived minimum 1. Actors run different code paths (deposit vs withdraw)."
+}

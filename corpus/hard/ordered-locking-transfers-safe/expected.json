@@ -1,0 +1,9 @@
+{
+  "id": "ordered-locking-transfers-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "deadlock-fixed-lock-ordering",
+  "driver": "pg",
+  "fix": "lock both rows in id order with one SELECT ... ORDER BY id FOR UPDATE",
+  "notes": "Expected: clean. Counterpart of deadlock-opposite-order."
+}

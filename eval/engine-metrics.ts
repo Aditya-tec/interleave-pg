@@ -5,7 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { explore, type ExploreReport } from '../packages/engine/dist/explorer.js';
+import { explore, formatExplore, type ExploreReport } from '../packages/engine/dist/explorer.js';
 import { loadScenario } from '../packages/engine/dist/loader.js';
 import { createSession } from '../packages/engine/dist/runner.js';
 
@@ -34,9 +34,13 @@ interface ReportLike {
 }
 
 /** Did a scope:out scenario behave the way its expected.json says it must? Every given field has to hold; none given = not OK. */
-export function judgeLimit(expected: Expected, report: ReportLike | undefined, error: string | undefined): boolean {
+export function judgeLimit(expected: Expected, report: ReportLike | undefined, error: string | undefined, printed?: string): boolean {
   const checks: boolean[] = [];
-  if (expected.message) checks.push(!!error && new RegExp(expected.message).test(error));
+  // message: the tool's error text, or (when the run ended normally) the printed report text
+  if (expected.message) {
+    const re = new RegExp(expected.message);
+    checks.push((!!error && re.test(error)) || (!error && !!printed && re.test(printed)));
+  }
   if (expected.notice) {
     checks.push(
       !!report &&
@@ -146,7 +150,7 @@ async function runOne(dsn: string, dir: string, expected: Expected, id: string):
 
   if (expected.scope === 'out') {
     // Honest limits: judged only on whether the tool said what its expected.json requires.
-    const ok = judgeLimit(expected, report as unknown as ReportLike | undefined, row.error);
+    const ok = judgeLimit(expected, report as unknown as ReportLike | undefined, row.error, report ? formatExplore(report) : undefined);
     row.outcome = ok ? 'limit-ok' : 'limit-fail';
     return row;
   }

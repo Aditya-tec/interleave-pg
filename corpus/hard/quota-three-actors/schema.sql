@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS q3_grants CASCADE;
+DROP TABLE IF EXISTS q3_quota CASCADE;
+CREATE TABLE q3_quota (id int PRIMARY KEY, used int NOT NULL, cap int NOT NULL);
+CREATE TABLE q3_grants (worker text PRIMARY KEY);

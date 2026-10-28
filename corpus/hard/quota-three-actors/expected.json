@@ -1,0 +1,10 @@
+{
+  "id": "quota-three-actors",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "quota-overrun-3-actors",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "grants never exceed the cap",
+  "notes": "Needs all three actors to grant against a cap of 2. Derived minimum 1 (A full; B reads; preempt to C; C full; B resumes). Serial-equivalence oracle should also flag it, but the named invariant must be present."
+}

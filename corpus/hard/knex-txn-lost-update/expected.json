@@ -1,0 +1,10 @@
+{
+  "id": "knex-txn-lost-update",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "lost-update",
+  "driver": "knex",
+  "minPreemptions": 1,
+  "invariant": "both deposits counted",
+  "notes": "Derived minimum 1. knex issues BEGIN/COMMIT as ordinary queries, so they are scheduling points too."
+}

@@ -110,6 +110,11 @@ describe('judging honest-limit scenarios (expected.json fields: message, notice,
     expect(judgeLimit({ message: 'cannot see' } as any, undefined, 'something else')).toBe(false);
     expect(judgeLimit({ message: 'cannot see' } as any, rep() as any, undefined)).toBe(false);
   });
+  it('message: may also match the printed report text when the run produced no error (for example the non-exhaustive wording after a budget stop)', () => {
+    expect(judgeLimit({ message: 'exhaustive within bound: no' } as any, rep() as any, undefined, 'Coverage: ..., exhaustive within bound: no, stopped by: schedule-budget')).toBe(true);
+    expect(judgeLimit({ message: 'exhaustive within bound: no' } as any, rep() as any, undefined, 'Coverage: ..., exhaustive within bound: yes')).toBe(false);
+    expect(judgeLimit({ message: 'x' } as any, undefined, undefined, undefined)).toBe(false);
+  });
   it('notice: a CONFIRMED finding must carry it', () => {
     const f = (status: string, notice: string) => rep({ violations: [{ status, notice, kind: 'VIOLATION', invariant: 'x' }] }) as any;
     expect(judgeLimit({ notice: 'N' } as any, f('CONFIRMED', 'N'), undefined)).toBe(true);

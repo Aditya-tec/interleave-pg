@@ -1,0 +1,10 @@
+{
+  "id": "advisory-early-unlock",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "advisory-lock-released-early",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "both deposits counted",
+  "notes": "Derived minimum 1."
+}

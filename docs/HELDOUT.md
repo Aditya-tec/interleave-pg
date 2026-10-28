@@ -178,3 +178,9 @@ So the human set was explored by CI about 25 seconds before the official local r
 * The agent-written set (`corpus/heldout`) was not explored by CI before the local run: that test only touches `heldout-human`.
 * **Fix** (test only, no engine change): the test now passes `--only zz-dummy-scenario`, so a test can never explore the real human scenarios.
 * The intended cross-version run of both held-out sets (workflow dispatch with `heldout=true`) was re-dispatched after this fix.
+
+---
+
+# Status change (Phase 3b): the sets above are now development data
+
+`corpus/heldout` and `corpus/heldout-human` are public, were run once (results in `eval/results/heldout-2026-10-28/`), and from Phase 3b onward count as **development data**: they may be used to tune and debug the engine, and nothing measured on them again may be quoted as held-out. The numbers already published for them stay valid as the one-shot results they were. **Any future headline claim needs a new held-out set** written, hashed and run under the same protocol. The adversarial set `corpus/hard` (Phase 3b, see `corpus/hard/README.md` and `docs/HARD_SET_RESULTS.md`) is labelled an *adversarial dev set*: it is neither held-out nor independent of an agent.

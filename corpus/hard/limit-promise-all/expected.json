@@ -1,0 +1,9 @@
+{
+  "id": "limit-promise-all",
+  "expect": "unsupported",
+  "scope": "out",
+  "class": "parallel-statements-in-one-actor",
+  "driver": "pg",
+  "message": "parallel statements (within|inside) one actor",
+  "notes": "The tool must stop with an explicit unsupported-feature error (spec 4.2, DECISIONS 2026-10-28) instead of a clean report. Wording in docs: 'UnsupportedError: parallel statements within one actor' / LIMITATIONS says 'inside one actor'."
+}

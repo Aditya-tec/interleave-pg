@@ -1,0 +1,9 @@
+{
+  "id": "ser-with-retry",
+  "expect": "safe",
+  "scope": "in",
+  "class": "serializable-with-retry",
+  "driver": "pg",
+  "fix": "SERIALIZABLE plus retry on 40001",
+  "notes": "SHOULD be classified clean. A retry changes the statement sequence under some schedules; no actor error escapes."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "writeskew-three-oncall",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "write-skew-3-actors",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "someone stays on call",
+  "notes": "Derived minimum 1 (A full; B BEGIN+SELECT; preempt to C; C full; B finishes). READ COMMITTED default."
+}

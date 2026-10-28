@@ -1,0 +1,9 @@
+{
+  "id": "savepoint-dup-guard-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "savepoint-handled-unique-violation",
+  "driver": "pg",
+  "fix": "SAVEPOINT around the INSERT, ROLLBACK TO on 23505, then read the existing row",
+  "notes": "Expected: clean. The 23505 is raised and handled inside the actor (the losing INSERT may be blocked until the winner commits)."
+}

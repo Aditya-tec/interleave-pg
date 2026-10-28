@@ -1,0 +1,9 @@
+{
+  "id": "drizzle-atomic-update-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "capacity-fixed-atomic-update",
+  "driver": "drizzle",
+  "fix": "conditional UPDATE ... WHERE taken < capacity RETURNING",
+  "notes": "Expected: clean."
+}

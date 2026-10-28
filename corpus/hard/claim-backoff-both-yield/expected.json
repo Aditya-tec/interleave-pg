@@ -1,0 +1,10 @@
+{
+  "id": "claim-backoff-both-yield",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "liveness-both-back-off",
+  "driver": "pg",
+  "minPreemptions": 2,
+  "invariant": "somebody holds the lease",
+  "notes": "Derived minimum 2 (see scenario comment; also checked on my own abstract model, not on the engine). The serial-equivalence oracle also flags the outcome (not a serial outcome) but the named invariant must be present. Mutual exclusion itself holds; the bug is that nobody wins."
+}

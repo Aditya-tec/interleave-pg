@@ -1,0 +1,9 @@
+{
+  "id": "limit-timer-wait",
+  "expect": "unsupported",
+  "scope": "out",
+  "class": "non-database-wait",
+  "driver": "pg",
+  "message": "stalled",
+  "notes": "Documented text (spec 4.3): actor \"A\" stalled outside the database; stub external calls in the scenario. Regex kept to the single documented word 'stalled'."
+}

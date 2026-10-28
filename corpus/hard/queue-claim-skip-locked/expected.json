@@ -1,0 +1,9 @@
+{
+  "id": "queue-claim-skip-locked",
+  "expect": "safe",
+  "scope": "in",
+  "class": "queue-claim-fixed-skip-locked",
+  "driver": "pg",
+  "fix": "FOR UPDATE SKIP LOCKED",
+  "notes": "Expected: clean. Possible false-positive trap: the job id a worker gets depends on the schedule, but the set of outcomes equals a serial order."
+}

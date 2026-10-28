@@ -1,0 +1,10 @@
+{
+  "id": "drizzle-txn-oversell",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "check-then-insert-capacity",
+  "driver": "drizzle",
+  "minPreemptions": 1,
+  "invariant": "bookings never exceed capacity",
+  "notes": "Derived minimum 1. The serial column dz1_bookings.id is excluded from snapshots."
+}

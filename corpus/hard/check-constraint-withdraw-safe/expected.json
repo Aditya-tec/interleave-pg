@@ -1,0 +1,9 @@
+{
+  "id": "check-constraint-withdraw-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "db-enforced-check",
+  "driver": "pg",
+  "fix": "CHECK (balance >= 0) plus a relative UPDATE; the losing statement sees 23514 check_violation, caught by the app",
+  "notes": "Expected: clean. The failed UPDATE is an error at statement level that the app handles."
+}

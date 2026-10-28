@@ -1,0 +1,10 @@
+{
+  "id": "savepoint-stock-rmw",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "lost-update-with-savepoints",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "stock plus sold equals initial",
+  "notes": "Derived minimum 1. Long transactions (about 12 statements) with SAVEPOINT / ROLLBACK TO / RELEASE; savepoint statements are scheduling points as well."
+}

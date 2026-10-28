@@ -1,0 +1,9 @@
+{
+  "id": "upsert-branch-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "upsert-branching",
+  "driver": "pg",
+  "fix": "INSERT ... ON CONFLICT DO UPDATE and relative UPDATE",
+  "notes": "Expected: clean. Counterpart of upsert-branch-dup-rows."
+}

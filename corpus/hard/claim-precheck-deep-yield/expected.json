@@ -1,0 +1,10 @@
+{
+  "id": "claim-precheck-deep-yield",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "liveness-both-back-off-deep",
+  "driver": "pg",
+  "minPreemptions": 3,
+  "invariant": "somebody holds the lease",
+  "notes": "Derived minimum 3, equal to the default preemption bound, so it is found only at the very edge of the search. Checked on my own abstract model (not the engine). If the engine bound semantics differ by one this may be missed."
+}

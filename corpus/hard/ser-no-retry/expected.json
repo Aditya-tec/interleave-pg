@@ -1,0 +1,9 @@
+{
+  "id": "ser-no-retry",
+  "expect": "safe",
+  "scope": "in",
+  "class": "serializable-no-retry",
+  "driver": "pg",
+  "fix": "SERIALIZABLE isolation; the losing actor sees SQLSTATE 40001 (retrying would be the app-level improvement)",
+  "notes": "SHOULD be classified clean: 40001 is a retriable abort per spec 4.6/8.12; invariants hold. Possible alternative the tool might print: an informational note. A confirmed finding would count as a false positive here."
+}

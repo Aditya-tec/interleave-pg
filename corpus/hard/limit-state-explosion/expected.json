@@ -1,0 +1,10 @@
+{
+  "id": "limit-state-explosion",
+  "expect": "unsupported",
+  "scope": "out",
+  "class": "state-explosion",
+  "driver": "pg",
+  "stoppedBy": ["schedule-budget", "time-budget"],
+  "message": "exhaustive within bound: no",
+  "notes": "Either budget is an acceptable reason (either one of the listed values). The report must not claim exhaustiveness; coverage line documented as 'explored X schedules, preemption bound K, exhaustive within bound: yes/no, stopped by: complete|schedule-budget|time-budget'. A budget stop with no finding exits 0 with non-exhaustive wording (DECISIONS)."
+}

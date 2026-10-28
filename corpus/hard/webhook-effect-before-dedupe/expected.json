@@ -1,0 +1,10 @@
+{
+  "id": "webhook-effect-before-dedupe",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "webhook-duplicate",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "the payment is credited once",
+  "notes": "Derived minimum 1."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "limit-nondeterministic-race",
+  "expect": "buggy",
+  "scope": "out",
+  "class": "nondeterministic-statements",
+  "driver": "pg",
+  "invariant": "both deposits counted",
+  "warning": "nondeterministic scenario",
+  "notes": "Real lost update (derived minimum 1) that cannot be replayed faithfully. The requirement is the warning text 'nondeterministic scenario' (LIMITATIONS, spec 4.7) at run level or on a finding. A finding that stays UNCONFIRMED (exit 4) is an acceptable honest outcome; a clean exit 0 without the warning is not."
+}

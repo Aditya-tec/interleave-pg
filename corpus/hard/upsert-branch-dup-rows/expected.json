@@ -1,0 +1,10 @@
+{
+  "id": "upsert-branch-dup-rows",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "check-then-insert-branching",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "one counter row per page",
+  "notes": "Branch taken depends on the schedule (INSERT vs UPDATE). Derived minimum 1."
+}

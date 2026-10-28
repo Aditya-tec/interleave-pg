@@ -1,0 +1,10 @@
+{
+  "id": "queue-claim-select-update",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "queue-double-claim",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "a job is claimed at most once",
+  "notes": "Derived minimum 1."
+}

@@ -1,0 +1,9 @@
+{
+  "id": "deferred-unique-commit-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "db-enforced-deferred-unique",
+  "driver": "pg",
+  "fix": "deferred UNIQUE constraint (losing actor sees 23505 raised by COMMIT)",
+  "notes": "Expected: clean plus an informational note. Uncertainty: a rejection raised at COMMIT leaves the helper issuing a ROLLBACK afterwards; the tool might treat the actor as 'left its transaction open' and keep it in the comparison, which would be a false positive."
+}

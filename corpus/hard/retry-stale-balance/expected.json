@@ -1,0 +1,10 @@
+{
+  "id": "retry-stale-balance",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "lost-update-retry-loop",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "both deposits counted",
+  "notes": "Derived minimum 1. A retry loop whose retry path is only reachable under overlap."
+}

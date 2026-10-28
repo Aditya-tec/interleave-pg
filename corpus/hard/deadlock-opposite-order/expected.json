@@ -1,0 +1,10 @@
+{
+  "id": "deadlock-opposite-order",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "deadlock-no-retry",
+  "driver": "pg",
+  "minPreemptions": 1,
+  "invariant": "both transfers recorded",
+  "notes": "Derived minimum 1. The victim abort (40P01) is a database outcome; only the invariant (and not the serial oracle, which compares the surviving actor with its serial run) can see that the aborted transfer was lost. Uncertain whether the tool treats this as a finding at all; I believe it should because the invariant is false in the final state. Costs about 300 ms per deadlocking schedule."
+}

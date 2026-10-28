@@ -1,0 +1,9 @@
+{
+  "id": "webhook-dedupe-first-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "webhook-duplicate-fixed-dedupe-first",
+  "driver": "pg",
+  "fix": "insert the idempotency key first (ON CONFLICT DO NOTHING RETURNING) and gate the effect on it",
+  "notes": "Expected: clean."
+}

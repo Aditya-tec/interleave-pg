@@ -17,7 +17,7 @@ id, expect ("buggy" | "safe" | "unsupported"), scope ("in" | "out"), class, driv
 buggy:  invariant   exact name of the invariant a CONFIRMED finding must carry ("serial-equivalence" if only the generic oracle can see it)
 safe:   fix         free text
 scope "out" (honest limits): at least one of
-        message     regex the tool's error text must match
+        message     regex the tool's error text must match (or, when the run ends normally, its printed report text)
         notice      text every CONFIRMED finding must carry
         warning     regex that must match a warning (run level, or on any finding)
         stoppedBy   "schedule-budget" | "time-budget" | [both]: the search must have stopped for that reason and must not claim to be exhaustive

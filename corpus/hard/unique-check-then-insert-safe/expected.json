@@ -1,0 +1,9 @@
+{
+  "id": "unique-check-then-insert-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "db-enforced-unique",
+  "driver": "pg",
+  "fix": "UNIQUE constraint (the losing actor sees 23505 unique_violation)",
+  "notes": "Expected: clean plus an informational note about the actor rejected by constraint seat6_one_booking. A confirmed finding of any kind would be a false positive."
+}

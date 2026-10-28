@@ -1,0 +1,9 @@
+{
+  "id": "cas-retry-loop-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "optimistic-lock-retry",
+  "driver": "pg",
+  "fix": "version-guarded UPDATE with a full re-read on retry",
+  "notes": "Expected: clean. Data-dependent loop: retry only happens when the version guard fails."
+}

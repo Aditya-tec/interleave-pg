@@ -1,0 +1,9 @@
+{
+  "id": "knex-txn-forupdate-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "lost-update-fixed-row-lock",
+  "driver": "knex",
+  "fix": "SELECT ... FOR UPDATE inside knex.transaction",
+  "notes": "Expected: clean. Blocked statements (B's FOR UPDATE) must not be reported as anything."
+}

@@ -1,0 +1,9 @@
+{
+  "id": "advisory-xact-lock-safe",
+  "expect": "safe",
+  "scope": "in",
+  "class": "lost-update-fixed-advisory-xact-lock",
+  "driver": "pg",
+  "fix": "pg_advisory_xact_lock with the same key on every path",
+  "notes": "Expected: clean."
+}
