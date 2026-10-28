@@ -1,0 +1,12 @@
+determinism exit=0
+dev exit=0
+heldout exit=0
+heldout-human exit=0
+hard exit=0
+PASS  recall >= 90%
+PASS  false positives == 0
+PASS  confirmation 100%
+PASS  out-of-scope items say "cannot see / unsupported"
+PASS  no tool errors on in-scope scenarios
+runtime (this job): median 385 ms, p95 6554 ms (reported, not enforced here)
+gates exit=0
