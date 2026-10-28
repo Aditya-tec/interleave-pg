@@ -1,0 +1,8 @@
+{
+  "id": "oversell-knex-relative",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "oversell",
+  "driver": "knex",
+  "invariant": "stock never negative"
+}

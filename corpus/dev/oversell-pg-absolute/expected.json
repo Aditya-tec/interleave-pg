@@ -1,0 +1,8 @@
+{
+  "id": "oversell-pg-absolute",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "oversell",
+  "driver": "pg",
+  "invariant": "orders never exceed initial stock"
+}

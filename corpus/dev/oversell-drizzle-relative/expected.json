@@ -1,0 +1,8 @@
+{
+  "id": "oversell-drizzle-relative",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "oversell",
+  "driver": "drizzle",
+  "invariant": "stock never negative"
+}

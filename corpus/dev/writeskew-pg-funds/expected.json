@@ -1,0 +1,8 @@
+{
+  "id": "writeskew-pg-funds",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "write-skew",
+  "driver": "pg",
+  "invariant": "total balance never negative"
+}

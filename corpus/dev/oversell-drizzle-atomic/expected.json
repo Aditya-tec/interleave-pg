@@ -1,0 +1,8 @@
+{
+  "id": "oversell-drizzle-atomic",
+  "expect": "safe",
+  "scope": "in",
+  "class": "oversell",
+  "driver": "drizzle",
+  "fix": "atomic-update"
+}

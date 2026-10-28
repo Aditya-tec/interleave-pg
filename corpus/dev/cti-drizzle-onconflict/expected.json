@@ -1,0 +1,8 @@
+{
+  "id": "cti-drizzle-onconflict",
+  "expect": "safe",
+  "scope": "in",
+  "class": "check-then-insert",
+  "driver": "drizzle",
+  "fix": "unique-on-conflict"
+}

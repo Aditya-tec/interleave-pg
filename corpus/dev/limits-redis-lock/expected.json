@@ -1,0 +1,1 @@
+{ "id": "limits-redis-lock", "expect": "unsupported", "scope": "out", "class": "limit-external-lock", "driver": "pg", "invariant": "coupon redeemed at most once", "notice": "This run cannot see locks held outside the database. If such a lock serializes these actors in production, this race may not occur there." }

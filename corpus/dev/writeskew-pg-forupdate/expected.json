@@ -1,0 +1,8 @@
+{
+  "id": "writeskew-pg-forupdate",
+  "expect": "safe",
+  "scope": "in",
+  "class": "write-skew",
+  "driver": "pg",
+  "fix": "for-update"
+}

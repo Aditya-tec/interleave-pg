@@ -1,0 +1,1 @@
+{ "id": "limits-prisma-stub", "expect": "unsupported", "scope": "out", "class": "limit-bypassing-driver", "driver": "stub", "message": "cannot see database calls that do not go through the app's pg package" }

@@ -1,0 +1,8 @@
+{
+  "id": "oversell-pg-relative",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "oversell",
+  "driver": "pg",
+  "invariant": "stock never negative"
+}

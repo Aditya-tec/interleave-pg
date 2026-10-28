@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS counters CASCADE;
+CREATE TABLE counters (id int PRIMARY KEY, n int NOT NULL);

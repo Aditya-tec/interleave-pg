@@ -1,0 +1,8 @@
+{
+  "id": "cti-knex-onconflict",
+  "expect": "safe",
+  "scope": "in",
+  "class": "check-then-insert",
+  "driver": "knex",
+  "fix": "unique-on-conflict"
+}

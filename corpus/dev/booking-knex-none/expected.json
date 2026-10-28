@@ -1,0 +1,8 @@
+{
+  "id": "booking-knex-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "phantom-booking",
+  "driver": "knex",
+  "invariant": "no two bookings overlap"
+}

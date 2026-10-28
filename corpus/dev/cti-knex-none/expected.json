@@ -1,0 +1,8 @@
+{
+  "id": "cti-knex-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "check-then-insert",
+  "driver": "knex",
+  "invariant": "at most one member per email"
+}

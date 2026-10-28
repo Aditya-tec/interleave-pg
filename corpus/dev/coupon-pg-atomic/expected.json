@@ -1,0 +1,8 @@
+{
+  "id": "coupon-pg-atomic",
+  "expect": "safe",
+  "scope": "in",
+  "class": "coupon",
+  "driver": "pg",
+  "fix": "atomic-update"
+}

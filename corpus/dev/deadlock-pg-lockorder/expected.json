@@ -1,0 +1,8 @@
+{
+  "id": "deadlock-pg-lockorder",
+  "expect": "safe",
+  "scope": "in",
+  "class": "deadlock",
+  "driver": "pg",
+  "fix": "lock-ordering"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "webhook-knex-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "webhook-duplicate",
+  "driver": "knex",
+  "invariant": "event handled once"
+}

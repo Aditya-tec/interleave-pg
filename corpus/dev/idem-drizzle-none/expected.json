@@ -1,0 +1,8 @@
+{
+  "id": "idem-drizzle-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "idempotency-key",
+  "driver": "drizzle",
+  "invariant": "one payment per idempotency key"
+}

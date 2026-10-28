@@ -1,0 +1,8 @@
+{
+  "id": "benign-knex",
+  "expect": "safe",
+  "scope": "in",
+  "class": "benign-control",
+  "driver": "knex",
+  "fix": "none-needed"
+}

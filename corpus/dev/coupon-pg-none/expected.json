@@ -1,0 +1,8 @@
+{
+  "id": "coupon-pg-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "coupon",
+  "driver": "pg",
+  "invariant": "coupon redeemed at most once"
+}

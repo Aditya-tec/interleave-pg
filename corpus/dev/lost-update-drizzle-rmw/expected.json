@@ -1,0 +1,8 @@
+{
+  "id": "lost-update-drizzle-rmw",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "lost-update",
+  "driver": "drizzle",
+  "invariant": "both deposits applied"
+}

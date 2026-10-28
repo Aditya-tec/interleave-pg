@@ -1,0 +1,8 @@
+{
+  "id": "counter-pg-serializable-retry",
+  "expect": "safe",
+  "scope": "in",
+  "class": "retry-wrapper-control",
+  "driver": "pg",
+  "fix": "serializable-retry"
+}

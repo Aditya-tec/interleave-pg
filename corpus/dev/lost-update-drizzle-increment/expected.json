@@ -1,0 +1,8 @@
+{
+  "id": "lost-update-drizzle-increment",
+  "expect": "safe",
+  "scope": "in",
+  "class": "lost-update",
+  "driver": "drizzle",
+  "fix": "atomic-update"
+}

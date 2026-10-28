@@ -1,0 +1,8 @@
+{
+  "id": "oversell-pg-atomic",
+  "expect": "safe",
+  "scope": "in",
+  "class": "oversell",
+  "driver": "pg",
+  "fix": "atomic-update"
+}

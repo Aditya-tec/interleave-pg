@@ -1,0 +1,8 @@
+{
+  "id": "queue-pg-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "queue-claim",
+  "driver": "pg",
+  "invariant": "a job is claimed by at most one worker"
+}

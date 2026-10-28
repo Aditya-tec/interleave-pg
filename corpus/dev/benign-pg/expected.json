@@ -1,0 +1,8 @@
+{
+  "id": "benign-pg",
+  "expect": "safe",
+  "scope": "in",
+  "class": "benign-control",
+  "driver": "pg",
+  "fix": "none-needed"
+}

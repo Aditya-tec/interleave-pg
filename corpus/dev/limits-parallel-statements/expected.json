@@ -1,0 +1,1 @@
+{ "id": "limits-parallel-statements", "expect": "unsupported", "scope": "out", "class": "limit-parallel-statements", "driver": "pg", "message": "parallel statements within one actor" }

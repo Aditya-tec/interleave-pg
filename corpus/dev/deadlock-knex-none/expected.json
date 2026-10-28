@@ -1,0 +1,8 @@
+{
+  "id": "deadlock-knex-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "deadlock",
+  "driver": "knex",
+  "invariant": "no actor aborted by a deadlock"
+}

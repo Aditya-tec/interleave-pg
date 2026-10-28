@@ -1,0 +1,8 @@
+{
+  "id": "lost-update-pg-atomic",
+  "expect": "safe",
+  "scope": "in",
+  "class": "lost-update",
+  "driver": "pg",
+  "fix": "atomic-update"
+}

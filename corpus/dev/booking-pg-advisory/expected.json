@@ -1,0 +1,8 @@
+{
+  "id": "booking-pg-advisory",
+  "expect": "safe",
+  "scope": "in",
+  "class": "phantom-booking",
+  "driver": "pg",
+  "fix": "advisory-lock"
+}

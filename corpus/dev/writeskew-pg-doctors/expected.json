@@ -1,0 +1,8 @@
+{
+  "id": "writeskew-pg-doctors",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "write-skew",
+  "driver": "pg",
+  "invariant": "at least one doctor on call"
+}

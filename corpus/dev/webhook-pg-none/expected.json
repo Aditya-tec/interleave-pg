@@ -1,0 +1,8 @@
+{
+  "id": "webhook-pg-none",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "webhook-duplicate",
+  "driver": "pg",
+  "invariant": "event handled once"
+}

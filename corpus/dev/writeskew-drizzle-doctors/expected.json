@@ -1,0 +1,8 @@
+{
+  "id": "writeskew-drizzle-doctors",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "write-skew",
+  "driver": "drizzle",
+  "invariant": "at least one doctor on call"
+}

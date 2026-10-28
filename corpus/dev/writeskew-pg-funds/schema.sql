@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS acct CASCADE;
+CREATE TABLE acct (id int PRIMARY KEY, balance int NOT NULL);

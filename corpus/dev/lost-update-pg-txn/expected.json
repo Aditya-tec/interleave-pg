@@ -1,0 +1,8 @@
+{
+  "id": "lost-update-pg-txn",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "lost-update",
+  "driver": "pg",
+  "invariant": "both deposits applied"
+}
