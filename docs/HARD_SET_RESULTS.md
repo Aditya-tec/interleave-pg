@@ -17,3 +17,5 @@
 `e22311635d40c8716df7c1a27cc0f985e295e88be6cc0157fcba0040b8a6d21b`
 
 Committed and pushed before the first engine run (commit id recorded below, after the freeze).
+
+Freeze commit (set, hash and harness, before any engine run on the set): `16d214df386d11578fc327ee38f186cabc4f206e`, pushed to origin/main.
