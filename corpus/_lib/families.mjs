@@ -607,6 +607,42 @@ function counterRetry() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Three actors (scale check)
+// ---------------------------------------------------------------------------------------------------------------
+function lostUpdate3() {
+  const base = lostUpdate({ driver: 'pg', fix: 'rmw' });
+  return {
+    ...base,
+    name: 'lost update with three actors (pg, rmw)',
+    actors: { A: (d) => d(), B: (d) => d(), C: (d) => d() },
+    invariants: [sqlInv('all three deposits applied', 'SELECT balance = 130 AS ok FROM accounts WHERE id = 1')],
+  };
+}
+
+function booking3() {
+  return {
+    name: 'overlapping booking in a transaction, three actors (pg)',
+    tables: ['bookings'],
+    schemaSql: 'CREATE TABLE bookings (id serial PRIMARY KEY, room int NOT NULL, start_h int NOT NULL, end_h int NOT NULL);',
+    setup: async ({ dsn }) => {
+      const pool = await makePool(dsn, 3);
+      return (s, e) =>
+        inTxn(pool, async (c) => {
+          const r = await c.query('SELECT count(*)::int AS n FROM bookings WHERE room = 1 AND start_h < $2 AND end_h > $1', [s, e]);
+          if (r.rows[0].n === 0) await c.query('INSERT INTO bookings (room, start_h, end_h) VALUES (1, $1, $2)', [s, e]);
+        });
+    },
+    actors: { A: (book) => book(9, 11), B: (book) => book(10, 12), C: (book) => book(9, 12) },
+    invariants: [
+      sqlInv(
+        'no two bookings overlap',
+        'SELECT NOT EXISTS (SELECT 1 FROM bookings a JOIN bookings b ON a.room = b.room AND a.id < b.id AND a.start_h < b.end_h AND a.end_h > b.start_h) AS ok',
+      ),
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Registry: the id is the directory name under corpus/dev
 // ---------------------------------------------------------------------------------------------------------------
 export const VARIANTS = {
@@ -666,6 +702,9 @@ export const VARIANTS = {
   // queue
   'queue-pg-none': { make: () => queue({ fix: 'none' }), expect: 'buggy', klass: 'queue-claim', driver: 'pg', invariant: 'a job is claimed by at most one worker' },
   'queue-pg-skiplocked': { make: () => queue({ fix: 'skiplocked' }), expect: 'safe', klass: 'queue-claim', driver: 'pg', fixPattern: 'skip-locked' },
+  // three actors
+  'lost-update-pg-3actors': { make: () => lostUpdate3(), expect: 'buggy', klass: 'lost-update', driver: 'pg', invariant: 'all three deposits applied' },
+  'booking-pg-txn-3actors': { make: () => booking3(), expect: 'buggy', klass: 'phantom-booking', driver: 'pg', invariant: 'no two bookings overlap' },
   // controls
   'benign-pg': { make: () => benign({ driver: 'pg' }), expect: 'safe', klass: 'benign-control', driver: 'pg', fixPattern: 'none-needed' },
   'benign-knex': { make: () => benign({ driver: 'knex' }), expect: 'safe', klass: 'benign-control', driver: 'knex', fixPattern: 'none-needed' },

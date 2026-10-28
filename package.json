@@ -1,9 +1,12 @@
 {
   "name": "interleave-pg-monorepo",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "npm run build -w interleave-pg",
-    "test": "npm test -w interleave-pg"
+    "test": "npm test -w interleave-pg",
+    "metrics": "npm run build && tsc -p eval && node eval/engine-metrics.js"
   }
 }

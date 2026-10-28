@@ -1,0 +1,8 @@
+{
+  "id": "lost-update-pg-3actors",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "lost-update",
+  "driver": "pg",
+  "invariant": "all three deposits applied"
+}

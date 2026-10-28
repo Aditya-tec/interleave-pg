@@ -17,7 +17,7 @@ const entries: { set: string; id: string; dir: string }[] = [];
 for (const set of ['dev', 'heldout', 'heldout-human']) {
   const base = join(corpus, set);
   if (!existsSync(base)) continue;
-  for (const id of readdirSync(base).sort()) {
+  for (const id of readdirSync(base).filter((n) => !n.startsWith('_') && !n.startsWith('.')).sort()) {
     const dir = join(base, id);
     if (existsSync(join(dir, 'expected.json')) && existsSync(join(dir, 'scenario.mjs'))) entries.push({ set, id, dir });
   }

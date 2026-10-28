@@ -1,0 +1,8 @@
+{
+  "id": "booking-pg-txn-3actors",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "phantom-booking",
+  "driver": "pg",
+  "invariant": "no two bookings overlap"
+}
