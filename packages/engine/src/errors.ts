@@ -30,3 +30,11 @@ export class ScenarioError extends Error {
     this.name = 'ScenarioError';
   }
 }
+
+/** A statement issued by an actor of an earlier run that was abandoned; it is rejected, never executed. */
+export class StaleRunError extends Error {
+  constructor() {
+    super('statement from an actor of an earlier run that was abandoned (a stall or abort) was rejected; it is not part of this run');
+    this.name = 'StaleRunError';
+  }
+}

@@ -1,0 +1,270 @@
+{
+  "summary": {
+    "set": "heldout",
+    "scenarios": 15,
+    "inScopeBuggy": 9,
+    "hits": 9,
+    "mismatches": 0,
+    "misses": 0,
+    "recall": 1,
+    "inScopeSafe": 6,
+    "falsePositives": 0,
+    "safeErrors": 0,
+    "fpRate": 0,
+    "confirmedFindings": 17,
+    "unconfirmedFindings": 0,
+    "confirmationRate": 1,
+    "exploredMedian": 36,
+    "exploredP95": 126,
+    "runtimeMedianMs": 1113,
+    "runtimeP95Ms": 12115,
+    "gates": {
+      "recall >= 90%": true,
+      "false positives == 0": true,
+      "confirmation 100%": true,
+      "runtime median <= 10 s": true,
+      "runtime p95 <= 60 s": true
+    }
+  },
+  "rows": [
+    {
+      "id": "audit-log-uuid-pg",
+      "expect": "safe",
+      "scope": "in",
+      "class": "benign-control",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 6,
+      "runtimeMs": 277,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "giftcard-redeem-atomic-pg",
+      "expect": "safe",
+      "scope": "in",
+      "class": "coupon",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 4,
+      "runtimeMs": 186,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "giftcard-redeem-pg",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "coupon",
+      "driver": "pg",
+      "expectedInvariant": "gift card never overdrawn",
+      "outcome": "hit",
+      "explored": 62,
+      "runtimeMs": 2450,
+      "confirmed": [
+        "VIOLATION:gift card never overdrawn",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "inventory-reserve-pg",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "pg",
+      "expectedInvariant": "reserved never exceeds on-hand",
+      "outcome": "hit",
+      "explored": 38,
+      "runtimeMs": 1428,
+      "confirmed": [
+        "VIOLATION:reserved never exceeds on-hand",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "job-claim-skiplocked-pg",
+      "expect": "safe",
+      "scope": "in",
+      "class": "queue-claim",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 90,
+      "runtimeMs": 1714,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "meeting-room-3actors-pg",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "phantom-booking",
+      "driver": "pg",
+      "expectedInvariant": "no two reservations overlap",
+      "outcome": "hit",
+      "explored": 66,
+      "runtimeMs": 1113,
+      "confirmed": [
+        "VIOLATION:no two reservations overlap",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "payment-webhook-insertfirst-pg",
+      "expect": "safe",
+      "scope": "in",
+      "class": "webhook-duplicate",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 36,
+      "runtimeMs": 2221,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "payment-webhook-pg",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "webhook-duplicate",
+      "driver": "pg",
+      "expectedInvariant": "one ledger credit per payment",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 532,
+      "confirmed": [
+        "VIOLATION:one ledger credit per payment",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "rate-limit-drizzle",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "drizzle",
+      "expectedInvariant": "allowed requests never exceed the quota",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 1059,
+      "confirmed": [
+        "VIOLATION:allowed requests never exceed the quota",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "stock-adjust-savepoint-pg",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "pg",
+      "expectedInvariant": "both adjustments applied",
+      "outcome": "hit",
+      "explored": 126,
+      "runtimeMs": 4265,
+      "confirmed": [
+        "VIOLATION:both adjustments applied",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "ticket-purchase-forupdate-knex",
+      "expect": "safe",
+      "scope": "in",
+      "class": "queue-claim",
+      "driver": "knex",
+      "outcome": "clean",
+      "explored": 36,
+      "runtimeMs": 1901,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "ticket-purchase-knex",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "queue-claim",
+      "driver": "knex",
+      "expectedInvariant": "each seat sold at most once",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 459,
+      "confirmed": [
+        "VIOLATION:each seat sold at most once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "username-claim-pg-txn",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "pg",
+      "expectedInvariant": "usernames are unique",
+      "outcome": "hit",
+      "explored": 44,
+      "runtimeMs": 762,
+      "confirmed": [
+        "VIOLATION:usernames are unique",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "username-claim-unique-handled-drizzle",
+      "expect": "safe",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "drizzle",
+      "outcome": "clean",
+      "explored": 6,
+      "runtimeMs": 227,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "wallet-transfer-order-pg",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "deadlock",
+      "driver": "pg",
+      "expectedInvariant": "no actor aborted by a deadlock",
+      "outcome": "hit",
+      "explored": 72,
+      "runtimeMs": 12115,
+      "confirmed": [
+        "VIOLATION:no actor aborted by a deadlock"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    }
+  ]
+}

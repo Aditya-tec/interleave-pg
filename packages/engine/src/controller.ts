@@ -85,6 +85,11 @@ export class Controller {
 
   constructor(private opts: ControllerOptions) {}
 
+  /** Identifies this run among all runs of the process (see `nextRunId`). */
+  get runId(): number {
+    return this.opts.runId;
+  }
+
   private notify(): void {
     this.lastChange = Date.now();
     const w = this.waiters;

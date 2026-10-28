@@ -1,7 +1,7 @@
 import { AsyncResource } from 'node:async_hooks';
 import net from 'node:net';
 import { als } from './actor-context.js';
-import { UnsupportedError } from './errors.js';
+import { StaleRunError, UnsupportedError } from './errors.js';
 import type { Controller, Outcome } from './controller.js';
 import { assertClientEndpoint, checkClientParams, UnsafeTargetError, type Target } from './guard.js';
 import { BYPASS, type PgModule } from './pg-load.js';
@@ -100,6 +100,17 @@ export function installHook(pg: PgModule, state: HookState): Hook {
         state.warnings.add(`untracked statement outside any actor passed through ungated: ${text.slice(0, 60)}`);
       }
       return original.apply(this, args);
+    }
+    if (store.runId !== controller.runId) {
+      // An actor of an earlier run that was abandoned (a stall, an abort) woke up and issued a statement. It belongs to
+      // no actor of this run: fail that statement alone and leave the current run untouched.
+      const stale = new StaleRunError();
+      const done = args[args.length - 1];
+      if (typeof done === 'function') {
+        process.nextTick(done, stale);
+        return undefined;
+      }
+      return Promise.reject(stale);
     }
     if (/^\s*(copy|listen|notify)\b/i.test(text)) {
       if (state.strict) refuse(`${text.trim().split(/\s+/)[0]!.toUpperCase()} cannot be gated`);

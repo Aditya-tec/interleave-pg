@@ -83,6 +83,10 @@ export interface Session {
 
 
 
+/** Unique across every session of the process: a statement from an abandoned run must never look like one of a later run. */
+let lastRunId = 0;
+const nextRunId = (): number => ++lastRunId;
+
 const ADVISORY_KEY = `hashtext('interleave-pg')`;
 
 export async function createSession(input: ScenarioDefinition, opts: SessionOptions): Promise<Session> {
@@ -99,7 +103,6 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
   const db: Db = { query: (sql, values) => control.query(sql, values as any[]) };
   const state: HookState = newHookState(target, opts.strict === true);
   let hook: Hook | undefined;
-  let runId = 0;
   const setupWarnings: string[] = [];
   let ctx: any = {};
   let closed = false;
@@ -210,7 +213,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
     const warnings: string[] = [];
     const controller = new Controller({
       chooser: xo.chooser,
-      runId: ++runId,
+      runId: nextRunId(),
       stallTimeoutMs,
       runTimeoutMs,
       prepareClient: (c) => hook!.prepareClient(c, settings),

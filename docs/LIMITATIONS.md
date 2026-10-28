@@ -61,3 +61,4 @@
 - **`--strict` only sees what goes through the patched `pg` client.** A driver other than `pg` is invisible to the tool in every mode (zero-statements error).
 - **The real-signal Ctrl-C test does not run on Windows** (Node cannot deliver SIGINT to a child there); it runs on Linux CI. On Windows the in-process tests cover the handler logic only.
 - **The README quickstart needs Docker** for the throwaway database (or any local Postgres plus `init-db`), and clones the default branch.
+- **An abandoned actor keeps running.** After a stall the engine cannot stop the user's code; a timer that fires later issues its statement, which the engine now rejects (`StaleRunError`) instead of mixing it into a later run. Before the Phase 4 fix this made one full hard-set run in three miss a bug (disclosed in docs/phase-4-report.md). Statements the abandoned code sends over a connection the engine does not hook are still not seen.
