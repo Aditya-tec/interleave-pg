@@ -124,6 +124,11 @@ export class Controller {
     });
   }
 
+  /** Actor that last used a backend (for attributing a transaction left open). */
+  ownerOf(pid: number): string | undefined {
+    return this.pidOwner.get(pid);
+  }
+
   abort(err: Error): void {
     if (this.aborted) return;
     this.aborted = err;
@@ -147,7 +152,7 @@ export class Controller {
       const p = als.run({ actor: id, runId: this.opts.runId }, async () => actorFns[id]!());
       p.then(
         (value) => this.finish(st, { actor: id, status: 'fulfilled', value }),
-        (e: any) => this.finish(st, { actor: id, status: 'rejected', error: { code: e?.code, message: String(e?.message ?? e) } }),
+        (e: any) => this.finish(st, { actor: id, status: 'rejected', error: { code: e?.code, message: String(e?.message ?? e), ...(typeof e?.constraint === 'string' ? { constraint: e.constraint } : {}) } }),
       );
     }
     const deadline = Date.now() + this.opts.runTimeoutMs;

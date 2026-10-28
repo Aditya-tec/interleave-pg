@@ -36,6 +36,20 @@ export function retriableAborts(results: Record<string, string>): string[] {
   return Object.keys(results).filter((a) => /^db:(40001|40P01)$/.test(results[a]!)).sort();
 }
 
+/**
+ * Actors the database rejected, which are left out of the outcome comparison (the remaining actors are compared
+ * against their own serial runs, and the snapshot is always compared):
+ *  - 40001 serialization_failure and 40P01 deadlock_detected (retriable aborts), and
+ *  - 23505 unique_violation and 23P01 exclusion_violation: a constraint doing its job as a backstop.
+ * Other integrity errors (23502 not-null, 23503 foreign key, 23514 check) stay ordinary results. A constraint-rejected
+ * actor that left its transaction open did not roll back cleanly, so it is NOT excluded (the difference is then reported).
+ */
+export function rejectedActors(results: Record<string, string>, openTxnActors: string[] = []): string[] {
+  return Object.keys(results)
+    .filter((a) => /^db:(40001|40P01)$/.test(results[a]!) || (/^db:(23505|23P01)$/.test(results[a]!) && !openTxnActors.includes(a)))
+    .sort();
+}
+
 export function permutations<T>(items: T[]): T[][] {
   if (items.length <= 1) return [items.slice()];
   return items.flatMap((x, i) => permutations([...items.slice(0, i), ...items.slice(i + 1)]).map((p) => [x, ...p]));
@@ -45,8 +59,8 @@ export function permutations<T>(items: T[]): T[][] {
  * Is this concurrent outcome equal to the outcome of some serial order? Actors aborted by the database
  * (40001, 40P01) are compared against serial executions of the remaining actors only.
  */
-export function isSerializable(o: Outcome, reference: (actors: string[]) => Set<string>): boolean {
-  const aborted = retriableAborts(o.results);
+export function isSerializable(o: Outcome, reference: (actors: string[]) => Set<string>, openTxnActors: string[] = []): boolean {
+  const aborted = rejectedActors(o.results, openTxnActors);
   const remaining = Object.keys(o.results).filter((a) => !aborted.includes(a)).sort();
   if (remaining.length === 0) return true;
   return reference(remaining).has(outcomeKey(o, remaining));

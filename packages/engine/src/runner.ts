@@ -45,6 +45,8 @@ export interface RunResult {
   choices: string[];
   /** sha256 of the normalized statement sequence (actor, SQL, params). */
   fingerprint: string;
+  /** Actors whose transaction was still open when the run ended (they did not roll back cleanly). */
+  openTxnActors: string[];
   /** Canonical hash of the final database snapshot (only when requested). */
   snapshotHash?: string;
   steps: Step[];
@@ -205,12 +207,17 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
     const results = ids.map((id) => controller.results.get(id)!);
     warnings.push(...controller.warnings, ...state.warnings);
     const pids = [...state.clients].map((c) => c.processID).filter((p) => typeof p === 'number');
+    const openTxnActors = new Set<string>();
     if (pids.length) {
       const open = await control.query(
-        `SELECT count(*)::int AS n FROM pg_stat_activity WHERE pid = ANY($1::int[]) AND state LIKE 'idle in transaction%'`,
+        `SELECT pid FROM pg_stat_activity WHERE pid = ANY($1::int[]) AND state LIKE 'idle in transaction%'`,
         [pids],
       );
-      if (open.rows[0].n > 0) warnings.push('transaction left open at the end of the run');
+      for (const row of open.rows) {
+        const who = controller.ownerOf(row.pid);
+        if (who) openTxnActors.add(who);
+      }
+      if (open.rows.length > 0) warnings.push(`transaction left open at the end of the run${openTxnActors.size ? ' (actor ' + [...openTxnActors].sort().join(', ') + ')' : ''}`);
     }
     const violations = xo.invariants === false ? [] : await evaluate(results);
     const choices = controller.decisions.map((d) => d.chosen);
@@ -218,6 +225,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
       scenario: scenario.name,
       schedule: xo.label ?? choices,
       decisions: controller.decisions,
+      openTxnActors: [...openTxnActors].sort(),
       choices,
       fingerprint: createHash('sha256').update(controller.steps.map((st) => `${st.actor}|${st.sql}|${JSON.stringify(st.params ?? null)}`).join('\n')).digest('hex'),
       ...(xo.snapshot ? { snapshotHash: await snapshotHash() } : {}),

@@ -235,3 +235,31 @@ describe('exitCodeFor semantics (0 vs 1 vs 4)', () => {
 describe('seeds are importable as plain modules', () => {
   it('file URLs resolve', () => { expect(pathToFileURL(seeds).href).toMatch(/^file:/); });
 });
+
+describe('Phase 3: constraint rejections are judged by state, not by the error', () => {
+  it('correct code with a UNIQUE backstop is not flagged, and the rejection is reported as an informational note', async () => {
+    const report = await explore(await open('signup-unique-backstop.mjs'), {});
+    expect(report.violations).toEqual([]);
+    expect(exitCodeFor(report)).toBe(0);
+    const text = formatExplore(report);
+    expect(text).toMatch(/note: actor [AB] rejected by constraint "?members_email_key"?; if the app does not handle this, users see an error/);
+    expect(report.notes.length).toBeGreaterThan(0);
+  });
+  it('a buggy variant that also hits 23505 is still caught (violation and anomaly), by state', async () => {
+    const report = await explore(await open('coupon-unique-partial.mjs'), {});
+    expect(confirmed(report).map((v) => `${v.kind}:${v.invariant}`).sort()).toEqual(['ANOMALY:serial-equivalence', 'VIOLATION:remaining stock never negative']);
+    expect(report.notes.length).toBeGreaterThan(0); // 23505 did happen in some explored schedule
+  });
+  it('a foreign-key violation (23503) is NOT suppressed', async () => {
+    const report = await explore(await open('fk-violation.mjs'), {});
+    const hit = confirmed(report)[0];
+    expect(hit?.kind).toBe('ANOMALY');
+    expect(hit?.invariant).toBe('serial-equivalence');
+    expect(report.notes).toEqual([]);
+  });
+  it('a constraint-rejected actor that left its transaction open is still a finding', async () => {
+    const report = await explore(await open('leaky-constraint.mjs'), {});
+    expect(confirmed(report).some((v) => v.kind === 'ANOMALY')).toBe(true);
+    expect(report.warnings.join(' ')).toMatch(/transaction left open/);
+  });
+});

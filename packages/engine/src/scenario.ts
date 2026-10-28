@@ -8,7 +8,7 @@ export interface ActorResult {
   actor: string;
   status: 'fulfilled' | 'rejected';
   value?: unknown;
-  error?: { code?: string; message: string };
+  error?: { code?: string; message: string; constraint?: string };
 }
 
 export type Invariant =

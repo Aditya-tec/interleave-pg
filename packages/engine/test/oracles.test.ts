@@ -91,3 +91,26 @@ describe('snapshots', () => {
     expect((await client.query("SELECT to_regclass('snap_a') IS NOT NULL AS ok")).rows[0].ok).toBe(true);
   });
 });
+
+import { rejectedActors } from '../src/oracles.js';
+
+describe('which errors are database rejections (not part of the outcome)', () => {
+  const r = (code: string) => ({ A: 'ok:undefined', B: `db:${code}` });
+  it('40001, 40P01, 23505 and 23P01 are rejections', () => {
+    for (const c of ['40001', '40P01', '23505', '23P01']) expect(rejectedActors(r(c))).toEqual(['B']);
+  });
+  it('other integrity errors (23502, 23503, 23514) and other codes stay ordinary results', () => {
+    for (const c of ['23502', '23503', '23514', '42P01', '22012', '55P03']) expect(rejectedActors(r(c))).toEqual([]);
+  });
+  it('a constraint-rejected actor that left its transaction open is not a clean rejection', () => {
+    expect(rejectedActors(r('23505'), ['B'])).toEqual([]);
+    expect(rejectedActors(r('40001'), ['B'])).toEqual(['B']); // the existing retriable-abort rule is unchanged
+  });
+  it('serial comparison excludes a constraint-rejected actor but still compares the snapshot', () => {
+    const o = (snapshot: string) => ({ snapshot, results: { A: 'ok:undefined', B: 'db:23505' } });
+    const ref = (key: string) => (subset: string[]) => new Set(subset.join('') === 'A' ? [key] : []);
+    const good = outcomeKey({ snapshot: 'S', results: { A: 'ok:undefined' } }, ['A']);
+    expect(isSerializable(o('S'), ref(good))).toBe(true);
+    expect(isSerializable(o('S-with-a-partial-effect'), ref(good))).toBe(false);
+  });
+});

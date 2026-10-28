@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { prefixChooser, serialChooser } from './choosers.js';
 import type { Step } from './controller.js';
 import { classify, type Hint } from './hints.js';
-import { isSerializable, normalizeResult, outcomeKey, permutations, RETRIABLE_CODES, type Outcome } from './oracles.js';
+import { isSerializable, normalizeResult, outcomeKey, permutations, rejectedActors, RETRIABLE_CODES, type Outcome } from './oracles.js';
 import type { Isolation, RunResult, Session } from './runner.js';
 import { exploreBounded, exploreRandom, systemClock, type Clock, type StoppedBy } from './strategy.js';
 
@@ -57,6 +57,8 @@ export interface ExploreReport {
   oracles: string[];
   violations: Finding[];
   warnings: string[];
+  /** Informational: not findings (for example an actor rejected by a UNIQUE constraint). */
+  notes: string[];
   stats: ExploreStats;
   durationMs: number;
   exitCode: 0 | 1 | 4;
@@ -118,11 +120,17 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
   // ---- exploration -------------------------------------------------------------------------------------
   const found = new Map<string, Finding & { _hintsFrom: Step[] }>();
   const warnings = new Set<string>();
+  const notes = new Set<string>();
   const stats: ExploreStats = { abortCodes: [], blockedSeen: false, constraintErrors: false, violatingSchedules: 0 };
   const aborts = new Set<string>();
 
   const onSchedule = async (info: { index: number; choices: string[]; preemptions: number }, r: RunResult) => {
     for (const w of r.warnings) warnings.add(w);
+    for (const x of r.results) {
+      if (x.error && (x.error.code === '23505' || x.error.code === '23P01') && !r.openTxnActors.includes(x.actor)) {
+        notes.add(`actor ${x.actor} rejected by constraint ${x.error.constraint ? '"' + x.error.constraint + '"' : '(unnamed)'}; if the app does not handle this, users see an error`);
+      }
+    }
     for (const s of r.steps) {
       if (s.blockedBy) stats.blockedSeen = true;
       if (s.errorCode && RETRIABLE_CODES.has(s.errorCode)) aborts.add(s.errorCode);
@@ -199,6 +207,7 @@ export async function explore(session: Session, o: ExploreRunOptions): Promise<E
     oracles: ['invariants', ...(useSerial ? ['serial-equivalence'] : [])],
     violations,
     warnings: [...warnings].sort(),
+    notes: [...notes].sort(),
     stats,
     durationMs: Date.now() - started,
     exitCode: 0,
@@ -288,6 +297,7 @@ export function formatExplore(r: ExploreReport): string {
     for (const w of f.warnings) out.push(`  warning: ${w}`);
   }
   for (const w of r.warnings) out.push(`warning: ${w}`);
+  for (const n of r.notes) out.push(`note: ${n}`);
   out.push('');
   const c = r.coverage;
   const confirmedN = r.violations.filter((v) => v.status === 'CONFIRMED').length;
@@ -342,10 +352,10 @@ export function createAnalyzer(session: Session, useSerial: boolean) {
     const out: Candidate[] = r.violations.map((v) => ({ kind: 'VIOLATION' as const, invariant: v.invariant, detail: v.detail }));
     if (useSerial && r.snapshotHash) {
       const outcome = toOutcome(r);
-      const aborted = Object.keys(outcome.results).filter((a) => /^db:(40001|40P01)$/.test(outcome.results[a]!));
+      const aborted = rejectedActors(outcome.results, r.openTxnActors);
       const remaining = Object.keys(outcome.results).filter((a) => !aborted.includes(a)).sort();
       if (remaining.length > 0) await ensureReference(remaining);
-      if (!isSerializable(outcome, (subset) => reference.get(subset.join(',')) ?? new Set())) {
+      if (!isSerializable(outcome, (subset) => reference.get(subset.join(',')) ?? new Set(), r.openTxnActors)) {
         out.push({ kind: 'ANOMALY', invariant: 'serial-equivalence', detail: 'the outcome matches no serial execution of the actors' });
       }
     }

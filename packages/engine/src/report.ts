@@ -38,6 +38,7 @@ export function serializeReport(r: ExploreReport): string {
       warnings: v.warnings,
     })),
     warnings: r.warnings,
+    notes: r.notes,
     exitCode: r.exitCode,
   };
   const text = JSON.stringify(out, null, 2);
