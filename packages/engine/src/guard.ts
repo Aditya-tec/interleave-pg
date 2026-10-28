@@ -23,8 +23,14 @@ export interface Conn {
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1']);
 const DB_PATTERN = /^interleave_/;
 
+/**
+ * S5. Replaces every password in `text` with `***`: URL userinfo (the password runs to the last "@" of the token, so a
+ * raw "@" or "/" inside it cannot leak a tail), `password=` in a query string, and `password=` in keyword/value form.
+ */
 export function redactDsn(dsn: string): string {
-  return dsn.replace(/^([a-z]+:\/\/[^:/@\s]*):[^@/\s]*@/i, '$1:***@');
+  return dsn
+    .replace(/([a-z][a-z0-9+.-]*:\/\/[^:/@\s]*):\S*@/gi, '$1:***@')
+    .replace(/\bpassword\s*=\s*('(?:[^'\\]|\\.)*'|[^&\s]+)/gi, 'password=***');
 }
 
 export function isLocalHost(host: string): boolean {
