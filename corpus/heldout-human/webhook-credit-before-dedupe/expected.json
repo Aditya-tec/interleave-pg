@@ -1,2 +1,10 @@
-{ "verdict": "buggy", "bugClass": "idempotency-race", "mustFailInvariant": "a webhook event credits the account exactly once", "minPreemptions": 1,
-  "notes": "A unique constraint exists but is hit too late: the side effect already ran twice, the second insert fails with 23505 after the credit. Tests that the oracle does not hide this bug just because a constraint error occurred." }
+{
+  "id": "webhook-credit-before-dedupe",
+  "expect": "buggy",
+  "scope": "in",
+  "class": "idempotency-race",
+  "driver": "pg",
+  "invariant": "a webhook event credits the account exactly once",
+  "minPreemptions": 1,
+  "notes": "A unique constraint exists but is hit too late: the side effect already ran twice, the second insert fails with 23505 after the credit. Tests that the oracle does not hide this bug just because a constraint error occurred."
+}

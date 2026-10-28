@@ -2,6 +2,7 @@
 // Tree hash of the held-out set, so "committed before the final measurement" is checkable.
 //   node eval/hash-heldout.mjs            print every file's sha256 and the tree hash
 //   node eval/hash-heldout.mjs --verify <treeHash>   exit 1 if the set changed
+//   add --set heldout-human to hash the human-authored scenarios instead (top-level files and directories starting with _ or . are ignored)
 // The hash covers corpus/heldout/** and the three shared helper modules those scenarios import.
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -9,15 +10,18 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const setArg = process.argv.indexOf('--set');
+const set = setArg >= 0 ? process.argv[setArg + 1] : 'heldout';
 const files = [];
-const walk = (dir) => {
+const walk = (dir, top = true) => {
   for (const name of readdirSync(dir).sort()) {
+    if (set === 'heldout-human' && top && (name.startsWith('_') || name.startsWith('.') || !statSync(join(dir, name)).isDirectory())) continue;
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p);
+    if (statSync(p).isDirectory()) walk(p, false);
     else files.push(p);
   }
 };
-walk(join(root, 'corpus', 'heldout'));
+walk(join(root, 'corpus', set));
 for (const f of ['lib.mjs', 'lib-knex.mjs', 'lib-drizzle.mjs']) files.push(join(root, 'corpus', '_lib', f));
 
 const lines = files

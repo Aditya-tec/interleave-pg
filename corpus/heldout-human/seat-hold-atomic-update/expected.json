@@ -1,2 +1,7 @@
-{ "verdict": "safe",
-  "notes": "Check-then-act shape, but the write re-checks atomically (WHERE holder IS NULL) and uses rowCount. A tool that flags any SELECT-then-UPDATE pattern would raise a false positive here. Final holder may legitimately be either user." }
+{
+  "id": "seat-hold-atomic-update",
+  "expect": "safe",
+  "scope": "in",
+  "driver": "pg",
+  "notes": "Check-then-act shape, but the write re-checks atomically (WHERE holder IS NULL) and uses rowCount. A tool that flags any SELECT-then-UPDATE pattern would raise a false positive here. Final holder may legitimately be either user."
+}
