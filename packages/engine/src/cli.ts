@@ -4,6 +4,7 @@ import { isAbsolute, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { doctor } from './doctor.js';
 import { ScenarioError } from './errors.js';
+import { explainError, suggestCommand } from './explain.js';
 import { explore, exploreMatrix, formatExplore, formatMatrix, replayFinding, type ExploreRunOptions } from './explorer.js';
 import { redactDsn, UnsafeTargetError } from './guard.js';
 import { renderHtml } from './html-report.js';
@@ -220,7 +221,8 @@ async function main(argv: string[]): Promise<number> {
     }
   }
 
-  throw new ScenarioError(`unknown command "${cmd}"\n\n${USAGE}`);
+  const near = suggestCommand(cmd);
+  throw new ScenarioError(`unknown command "${cmd}"${near ? ` (did you mean "${near}"?)` : ''}; see interleave-pg --help`);
 }
 
 main(process.argv.slice(2)).then(
@@ -229,11 +231,8 @@ main(process.argv.slice(2)).then(
     if (e instanceof UnsafeTargetError) {
       err(redactDsn(e.message));
       exit(3);
-    } else if (typeof e?.code === 'string' && e.code.startsWith('ERR_PARSE_ARGS')) {
-      err(`${e.message}\n\n${USAGE}`);
-      exit(2);
     } else {
-      err(`${e?.name ?? 'Error'}: ${redactDsn(String(e?.message ?? e))}`);
+      err(explainError(e));
       exit(2);
     }
   },

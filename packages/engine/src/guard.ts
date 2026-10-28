@@ -108,7 +108,7 @@ export interface GuardDeps {
  * catalog probe for the marker table that only `init-db` creates.
  */
 export async function assertSafeTarget(dsn: string | undefined, deps: GuardDeps): Promise<Target> {
-  if (!dsn) throw new UnsafeTargetError('refusing target: no DSN. Set INTERLEAVE_DSN or pass --dsn');
+  if (!dsn) throw new UnsafeTargetError('refusing target: no DSN. Set INTERLEAVE_DSN or pass --dsn (create a throwaway database with `interleave-pg init-db`; `interleave-pg init-db --compose` prints a compose file for one)');
   const target = parseDsn(dsn);
   checkTargetStatic(target, deps.env ?? process.env);
   const conn = await deps.connect(target);
