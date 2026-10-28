@@ -1,0 +1,113 @@
+{
+  "summary": {
+    "set": "heldout-human",
+    "scenarios": 5,
+    "inScopeBuggy": 3,
+    "hits": 3,
+    "mismatches": 0,
+    "misses": 0,
+    "recall": 1,
+    "inScopeSafe": 2,
+    "falsePositives": 0,
+    "safeErrors": 0,
+    "fpRate": 0,
+    "confirmedFindings": 7,
+    "unconfirmedFindings": 0,
+    "confirmationRate": 1,
+    "exploredMedian": 14,
+    "exploredP95": 18,
+    "runtimeMedianMs": 497,
+    "runtimeP95Ms": 930,
+    "gates": {
+      "recall >= 90%": true,
+      "false positives == 0": true,
+      "confirmation 100%": true,
+      "runtime median <= 10 s": true,
+      "runtime p95 <= 60 s": true
+    }
+  },
+  "rows": [
+    {
+      "id": "leave-balance-overdraw",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "pg",
+      "expectedInvariant": "approved leave never exceeds the balance",
+      "expectedMinPreemptions": 1,
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 665,
+      "confirmed": [
+        "VIOLATION:approved leave never exceeds the balance",
+        "VIOLATION:balance plus approved leave equals the starting balance",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "retried-job-double-send",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "pg",
+      "expectedInvariant": "a job is sent at most once",
+      "expectedMinPreemptions": 1,
+      "outcome": "hit",
+      "explored": 18,
+      "runtimeMs": 497,
+      "confirmed": [
+        "VIOLATION:a job is sent at most once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "seat-hold-atomic-update",
+      "expect": "safe",
+      "scope": "in",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 6,
+      "runtimeMs": 198,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "wallet-optimistic-version",
+      "expect": "safe",
+      "scope": "in",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 6,
+      "runtimeMs": 179,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "webhook-credit-before-dedupe",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "idempotency-race",
+      "driver": "pg",
+      "expectedInvariant": "a webhook event credits the account exactly once",
+      "expectedMinPreemptions": 1,
+      "outcome": "hit",
+      "explored": 18,
+      "runtimeMs": 930,
+      "confirmed": [
+        "VIOLATION:a webhook event credits the account exactly once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    }
+  ]
+}

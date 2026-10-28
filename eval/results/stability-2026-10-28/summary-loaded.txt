@@ -1,0 +1,12 @@
+mode=loaded load=10 busy loops on 12 cores, time box 180 min
+plan: hard x10 strict budget 1800s; heldout x20 amended; heldout-human x20 amended; dev x10 amended
+baseline hard: matches the earlier normal pass
+baseline heldout: matches the earlier normal pass
+baseline heldout-human: matches the earlier normal pass
+baseline dev: matches the earlier normal pass
+busy loops started 2026-10-28T11:50:05.040Z
+loaded hard          7 of 10 runs completed (strict), no differences (11017 s)
+loaded heldout       0 of 20 runs completed (amended), no differences (0 s)
+loaded heldout-human 0 of 20 runs completed (amended), no differences (0 s)
+loaded dev           0 of 10 runs completed (amended), no differences (0 s)
+finished 2026-10-28T14:53:41.858Z (time box reached)

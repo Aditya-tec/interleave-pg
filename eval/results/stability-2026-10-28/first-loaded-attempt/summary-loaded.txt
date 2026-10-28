@@ -1,0 +1,11 @@
+mode=loaded load=10 busy loops on 12 cores, plan=hard:20,heldout:20,heldout-human:20,dev:10, budget=150 min, started 2026-10-28T11:09:27.322Z
+DIFFERENCE in hard loaded run 1 vs normal run 1:
+  expected ["limit-state-explosion","limit-ok",2000,[],[],"schedule-budget",null]
+  got      ["limit-state-explosion","limit-ok",653,[],[],"time-budget",null]
+  expected ["quota-three-actors","hit",552,["VIOLATION:grants never exceed the cap","ANOMALY:serial-equivalence"],[],"complete",1]
+  got      ["quota-three-actors","hit",425,["VIOLATION:grants never exceed the cap","ANOMALY:serial-equivalence"],[],"time-budget",1]
+  expected ["savepoint-stock-rmw","hit",516,["VIOLATION:stock plus sold equals initial","ANOMALY:serial-equivalence"],[],"complete",1]
+  got      ["savepoint-stock-rmw","hit",215,["VIOLATION:stock plus sold equals initial","ANOMALY:serial-equivalence"],[],"time-budget",1]
+  expected ["writeskew-three-oncall","hit",1752,["VIOLATION:someone stays on call","ANOMALY:serial-equivalence"],[],"complete",1]
+  got      ["writeskew-three-oncall","hit",418,["VIOLATION:someone stays on call","ANOMALY:serial-equivalence"],[],"time-budget",1]
+STOPPED: a difference was found

@@ -52,6 +52,50 @@ Local, Postgres 17.11, after the fix, `eval/results/post-phase4-after-stale-fix-
 
 (First run before the fix: hard 13 of 14, the miss above; the rest identical.) A new held-out set is needed for any future headline claim.
 
+## Stability proof for the stale-statement fix (added after Phase 4 acceptance)
+
+Evidence: `eval/results/stability-2026-10-28/` (per-run JSON, `summary-loaded.txt`, the aborted and first attempts kept). Script: `eval/stability.mjs`, criteria: `eval/stability-compare.mjs` (tested in `stability-compare.test.ts`).
+
+**Normal machine, 20 consecutive runs per set, every field compared (outcome, schedules explored, stop reason, confirmed and unconfirmed findings, preemption counts): identical in all runs.**
+
+| Set | Scenarios | Runs | Result |
+| --- | --- | --- | --- |
+| dev | 54 | 20 | identical |
+| heldout | 15 | 20 | identical |
+| heldout-human | 5 | 20 | identical |
+| hard | 32 | 20 | identical |
+
+**Loaded machine: a deviation from what was specified, stated plainly.**
+
+* Specified: all four sets, 20 runs each, all cores busy. Done instead (as amended): **10 busy loops on 12 cores**, because 12 loops made one dev-set run take about 9 minutes (the first, aborted attempt: 2 dev runs, kept in `aborted-12-busy-loops/`); 10 loops still leave about 2 cores for the engine, Postgres and Docker, which is heavier than a 4-vCPU CI runner.
+* **Counts actually completed: hard 7 of 10 (time budget 1800 s, every field compared, no differences); heldout 0 of 20; heldout-human 0 of 20; dev 0 of 10.** The 3-hour time box ended inside hard run 8, and the plan put the hard set first, so the other three sets have **no loaded runs at all**. The box was not extended.
+* **Unexplained slowness.** Hard runs 1 to 3, 5 and 6 took about 4 minutes each. Runs 4 and 7 took 21 and 30 minutes (one scenario each: 825 s, and 491 to 689 s, against about 90 s elsewhere). Run 8 started at 18:31 and had not finished when the machine went into Modern Standby at 19:07 (the Windows log shows standby from 19:07 to 20:23). Standby explains the end of the time box, not the 36 minutes before it, and no log entry explains runs 4 and 7. Their results were identical to the other runs. Per-scenario progress was not recorded for the unfinished run, so it cannot be said whether it was a hang under load or a sleeping laptop. It is **not** counted as a completed run and is **not** evidence either way.
+* The first loaded attempt (hard set, default 120 s budget, 12 busy loops) found **four differences**, kept in `first-loaded-attempt/`: `limit-state-explosion` (normal: 2000 schedules, stopped by schedule-budget; under load: 653, time-budget), `quota-three-actors` (552 complete; 425 time-budget), `savepoint-stock-rmw` (516 complete; 215 time-budget), `writeskew-three-oncall` (1752 complete; 418 time-budget). Outcomes and findings were identical; only the schedule count and stop reason differed, because the time budget is wall-clock (default 120 s) and the load made those searches 2 to 10 times slower. Analysis: not a regression of the fix.
+* **Amended criterion, committed with its tests before the new runs** (`eval/stability-compare.mjs`): for the hard set, every field including schedules explored, stop reason and first-violation index, with a 1800 s budget so no search is cut by time; for the other sets, outcome, findings, confirmations, preemptions and first-violation index always, and schedule count and stop reason only for scenarios that did not stop by time budget, with time-budget stops listed per run. The original criterion (identical outcomes AND schedule counts for everything) was too strict for time-budgeted searches.
+
+First-violation schedule index of every buggy hard-set scenario, quiet machine versus the 7 loaded runs (identical in every run, so each loaded cell is one number); no loaded run stopped by time budget:
+
+| Scenario | Quiet | Loaded (7 runs) | Schedules explored | Preemptions |
+| --- | --- | --- | --- | --- |
+| advisory-early-unlock | 3 | 3 | 26 | 1 |
+| advisory-key-mismatch | 3 | 3 | 82 | 1 |
+| claim-backoff-both-yield | 5 | 5 | 12 | 2 |
+| claim-precheck-deep-yield | 12 | 12 | 16 | 3 |
+| deadlock-opposite-order | 5 | 5 | 52 | 1 |
+| drizzle-txn-oversell | 3 | 3 | 90 | 1 |
+| knex-txn-lost-update | 3 | 3 | 38 | 1 |
+| queue-claim-select-update | 4 | 4 | 18 | 1 |
+| quota-three-actors | 7 | 7 | 552 | 1 |
+| retry-stale-balance | 3 | 3 | 6 | 1 |
+| savepoint-stock-rmw | 3 | 3 | 516 | 1 |
+| upsert-branch-dup-rows | 3 | 3 | 6 | 1 |
+| webhook-effect-before-dedupe | 3 | 3 | 82 | 1 |
+| writeskew-three-oncall | 7 | 7 | 1752 | 1 |
+
+Every buggy scenario is found by schedule 12 at the latest, out of up to 1752 explored, so "found early" is data here, not an assumption.
+
+**What zero differences in N runs does and does not rule out.** Zero differences in 20 normal runs per set and 7 loaded hard-set runs rules out a failure rate like the original bug's (1 in 3 runs would have gone unseen in 20 runs with probability about 0.03%) but only bounds a rarer one: by the rule of three, 0 in 20 means a rate below about 15% per run at 95% confidence, and 0 in 7 below about 35%; it does not prove the engine deterministic, says nothing about the three sets that had no loaded runs, and says nothing about other machines, Postgres versions or timing patterns.
+
 ## Limitations and things not done
 
 - The quickstart clones the default branch from GitHub, so a manual dispatch from another branch tests `main`. Nothing is published to npm (Phase 8, needs your approval).

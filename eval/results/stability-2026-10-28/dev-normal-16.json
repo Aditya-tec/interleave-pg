@@ -1,0 +1,884 @@
+{
+  "summary": {
+    "set": "dev",
+    "scenarios": 54,
+    "inScopeBuggy": 29,
+    "hits": 29,
+    "mismatches": 0,
+    "misses": 0,
+    "recall": 1,
+    "inScopeSafe": 22,
+    "falsePositives": 0,
+    "safeErrors": 0,
+    "fpRate": 0,
+    "confirmedFindings": 59,
+    "unconfirmedFindings": 0,
+    "confirmationRate": 1,
+    "exploredMedian": 14,
+    "exploredP95": 54,
+    "runtimeMedianMs": 547,
+    "runtimeP95Ms": 6696,
+    "gates": {
+      "recall >= 90%": true,
+      "false positives == 0": true,
+      "confirmation 100%": true,
+      "runtime median <= 10 s": true,
+      "runtime p95 <= 60 s": true
+    }
+  },
+  "rows": [
+    {
+      "id": "benign-knex",
+      "expect": "safe",
+      "scope": "in",
+      "class": "benign-control",
+      "driver": "knex",
+      "outcome": "clean",
+      "explored": 6,
+      "runtimeMs": 1185,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "benign-pg",
+      "expect": "safe",
+      "scope": "in",
+      "class": "benign-control",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 6,
+      "runtimeMs": 231,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "booking-knex-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "phantom-booking",
+      "driver": "knex",
+      "expectedInvariant": "no two bookings overlap",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 305,
+      "confirmed": [
+        "VIOLATION:no two bookings overlap",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "booking-pg-advisory",
+      "expect": "safe",
+      "scope": "in",
+      "class": "phantom-booking",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 36,
+      "runtimeMs": 1720,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "booking-pg-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "phantom-booking",
+      "driver": "pg",
+      "expectedInvariant": "no two bookings overlap",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 298,
+      "confirmed": [
+        "VIOLATION:no two bookings overlap",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "booking-pg-txn-3actors",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "phantom-booking",
+      "driver": "pg",
+      "expectedInvariant": "no two bookings overlap",
+      "outcome": "hit",
+      "explored": 1482,
+      "runtimeMs": 21983,
+      "confirmed": [
+        "VIOLATION:no two bookings overlap",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "counter-pg-serializable-retry",
+      "expect": "safe",
+      "scope": "in",
+      "class": "retry-wrapper-control",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 38,
+      "runtimeMs": 1358,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "coupon-drizzle-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "coupon",
+      "driver": "drizzle",
+      "expectedInvariant": "coupon redeemed at most once",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 1384,
+      "confirmed": [
+        "VIOLATION:coupon redeemed at most once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "coupon-knex-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "coupon",
+      "driver": "knex",
+      "expectedInvariant": "coupon redeemed at most once",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 740,
+      "confirmed": [
+        "VIOLATION:coupon redeemed at most once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "coupon-pg-atomic",
+      "expect": "safe",
+      "scope": "in",
+      "class": "coupon",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 4,
+      "runtimeMs": 285,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "coupon-pg-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "coupon",
+      "driver": "pg",
+      "expectedInvariant": "coupon redeemed at most once",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 648,
+      "confirmed": [
+        "VIOLATION:coupon redeemed at most once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "cti-drizzle-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "drizzle",
+      "expectedInvariant": "at most one member per email",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 509,
+      "confirmed": [
+        "VIOLATION:at most one member per email",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "cti-drizzle-onconflict",
+      "expect": "safe",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "drizzle",
+      "outcome": "clean",
+      "explored": 2,
+      "runtimeMs": 189,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "cti-knex-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "knex",
+      "expectedInvariant": "at most one member per email",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 430,
+      "confirmed": [
+        "VIOLATION:at most one member per email",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "cti-knex-onconflict",
+      "expect": "safe",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "knex",
+      "outcome": "clean",
+      "explored": 2,
+      "runtimeMs": 182,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "cti-pg-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "pg",
+      "expectedInvariant": "at most one member per email",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 512,
+      "confirmed": [
+        "VIOLATION:at most one member per email",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "cti-pg-onconflict",
+      "expect": "safe",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 2,
+      "runtimeMs": 226,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "cti-pg-txn",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "pg",
+      "expectedInvariant": "at most one member per email",
+      "outcome": "hit",
+      "explored": 44,
+      "runtimeMs": 886,
+      "confirmed": [
+        "VIOLATION:at most one member per email",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "cti-pg-unique-handled",
+      "expect": "safe",
+      "scope": "in",
+      "class": "check-then-insert",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 6,
+      "runtimeMs": 243,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "deadlock-knex-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "deadlock",
+      "driver": "knex",
+      "expectedInvariant": "no actor aborted by a deadlock",
+      "outcome": "hit",
+      "explored": 34,
+      "runtimeMs": 7016,
+      "confirmed": [
+        "VIOLATION:no actor aborted by a deadlock"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "deadlock-pg-lockorder",
+      "expect": "safe",
+      "scope": "in",
+      "class": "deadlock",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 24,
+      "runtimeMs": 963,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "deadlock-pg-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "deadlock",
+      "driver": "pg",
+      "expectedInvariant": "no actor aborted by a deadlock",
+      "outcome": "hit",
+      "explored": 34,
+      "runtimeMs": 6696,
+      "confirmed": [
+        "VIOLATION:no actor aborted by a deadlock"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "idem-drizzle-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "idempotency-key",
+      "driver": "drizzle",
+      "expectedInvariant": "one payment per idempotency key",
+      "outcome": "hit",
+      "explored": 18,
+      "runtimeMs": 680,
+      "confirmed": [
+        "VIOLATION:one payment per idempotency key",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "idem-pg-insertfirst",
+      "expect": "safe",
+      "scope": "in",
+      "class": "idempotency-key",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 24,
+      "runtimeMs": 1057,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "idem-pg-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "idempotency-key",
+      "driver": "pg",
+      "expectedInvariant": "one payment per idempotency key",
+      "outcome": "hit",
+      "explored": 18,
+      "runtimeMs": 702,
+      "confirmed": [
+        "VIOLATION:one payment per idempotency key",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "limits-parallel-statements",
+      "expect": "unsupported",
+      "scope": "out",
+      "class": "limit-parallel-statements",
+      "driver": "pg",
+      "outcome": "limit-ok",
+      "explored": null,
+      "runtimeMs": 105,
+      "confirmed": [],
+      "unconfirmed": [],
+      "error": "UnsupportedError: parallel statements within one actor (\"A\"): interleave-pg cannot explore code that has two statements in flight at once, so it cannot say anything about this scenario"
+    },
+    {
+      "id": "limits-prisma-stub",
+      "expect": "unsupported",
+      "scope": "out",
+      "class": "limit-bypassing-driver",
+      "driver": "stub",
+      "outcome": "limit-ok",
+      "explored": null,
+      "runtimeMs": 45,
+      "confirmed": [],
+      "unconfirmed": [],
+      "error": "NoStatementsError: no statements intercepted: pg resolution mismatch? interleave-pg cannot see database calls that do not go through the app's pg package (for example Prisma's query engine, or a second copy of pg), so it cannot say anything about this code"
+    },
+    {
+      "id": "limits-redis-lock",
+      "expect": "unsupported",
+      "scope": "out",
+      "class": "limit-external-lock",
+      "driver": "pg",
+      "expectedInvariant": "coupon redeemed at most once",
+      "outcome": "limit-ok",
+      "explored": 14,
+      "runtimeMs": 415,
+      "confirmed": [
+        "VIOLATION:coupon redeemed at most once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "lost-update-drizzle-increment",
+      "expect": "safe",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "drizzle",
+      "outcome": "clean",
+      "explored": 2,
+      "runtimeMs": 152,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "lost-update-drizzle-rmw",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "drizzle",
+      "expectedInvariant": "both deposits applied",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 302,
+      "confirmed": [
+        "VIOLATION:both deposits applied",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "lost-update-knex-increment",
+      "expect": "safe",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "knex",
+      "outcome": "clean",
+      "explored": 2,
+      "runtimeMs": 162,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "lost-update-knex-rmw",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "knex",
+      "expectedInvariant": "both deposits applied",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 267,
+      "confirmed": [
+        "VIOLATION:both deposits applied",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "lost-update-pg-3actors",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "pg",
+      "expectedInvariant": "all three deposits applied",
+      "outcome": "hit",
+      "explored": 90,
+      "runtimeMs": 1309,
+      "confirmed": [
+        "VIOLATION:all three deposits applied",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "lost-update-pg-atomic",
+      "expect": "safe",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 2,
+      "runtimeMs": 140,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "lost-update-pg-forupdate",
+      "expect": "safe",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 24,
+      "runtimeMs": 969,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "lost-update-pg-rmw",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "pg",
+      "expectedInvariant": "both deposits applied",
+      "outcome": "hit",
+      "explored": 6,
+      "runtimeMs": 247,
+      "confirmed": [
+        "VIOLATION:both deposits applied",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "lost-update-pg-txn",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "lost-update",
+      "driver": "pg",
+      "expectedInvariant": "both deposits applied",
+      "outcome": "hit",
+      "explored": 38,
+      "runtimeMs": 1363,
+      "confirmed": [
+        "VIOLATION:both deposits applied",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "oversell-drizzle-atomic",
+      "expect": "safe",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "drizzle",
+      "outcome": "clean",
+      "explored": 4,
+      "runtimeMs": 186,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "oversell-drizzle-relative",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "drizzle",
+      "expectedInvariant": "stock never negative",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 490,
+      "confirmed": [
+        "VIOLATION:stock never negative",
+        "VIOLATION:orders never exceed initial stock",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "oversell-knex-atomic",
+      "expect": "safe",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "knex",
+      "outcome": "clean",
+      "explored": 4,
+      "runtimeMs": 186,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "oversell-knex-relative",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "knex",
+      "expectedInvariant": "stock never negative",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 498,
+      "confirmed": [
+        "VIOLATION:stock never negative",
+        "VIOLATION:orders never exceed initial stock",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "oversell-pg-absolute",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "pg",
+      "expectedInvariant": "orders never exceed initial stock",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 432,
+      "confirmed": [
+        "VIOLATION:orders never exceed initial stock",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "oversell-pg-atomic",
+      "expect": "safe",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 4,
+      "runtimeMs": 196,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "oversell-pg-relative",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "oversell",
+      "driver": "pg",
+      "expectedInvariant": "stock never negative",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 452,
+      "confirmed": [
+        "VIOLATION:stock never negative",
+        "VIOLATION:orders never exceed initial stock",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "queue-pg-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "queue-claim",
+      "driver": "pg",
+      "expectedInvariant": "a job is claimed by at most one worker",
+      "outcome": "hit",
+      "explored": 14,
+      "runtimeMs": 547,
+      "confirmed": [
+        "VIOLATION:a job is claimed by at most one worker",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "queue-pg-skiplocked",
+      "expect": "safe",
+      "scope": "in",
+      "class": "queue-claim",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 54,
+      "runtimeMs": 1285,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "webhook-knex-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "webhook-duplicate",
+      "driver": "knex",
+      "expectedInvariant": "event handled once",
+      "outcome": "hit",
+      "explored": 18,
+      "runtimeMs": 516,
+      "confirmed": [
+        "VIOLATION:event handled once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "webhook-pg-insertfirst",
+      "expect": "safe",
+      "scope": "in",
+      "class": "webhook-duplicate",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 24,
+      "runtimeMs": 1682,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "webhook-pg-none",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "webhook-duplicate",
+      "driver": "pg",
+      "expectedInvariant": "event handled once",
+      "outcome": "hit",
+      "explored": 18,
+      "runtimeMs": 999,
+      "confirmed": [
+        "VIOLATION:event handled once",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "writeskew-drizzle-doctors",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "write-skew",
+      "driver": "drizzle",
+      "expectedInvariant": "at least one doctor on call",
+      "outcome": "hit",
+      "explored": 44,
+      "runtimeMs": 963,
+      "confirmed": [
+        "VIOLATION:at least one doctor on call",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "writeskew-pg-doctors",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "write-skew",
+      "driver": "pg",
+      "expectedInvariant": "at least one doctor on call",
+      "outcome": "hit",
+      "explored": 44,
+      "runtimeMs": 778,
+      "confirmed": [
+        "VIOLATION:at least one doctor on call",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "writeskew-pg-forupdate",
+      "expect": "safe",
+      "scope": "in",
+      "class": "write-skew",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 24,
+      "runtimeMs": 948,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    },
+    {
+      "id": "writeskew-pg-funds",
+      "expect": "buggy",
+      "scope": "in",
+      "class": "write-skew",
+      "driver": "pg",
+      "expectedInvariant": "total balance never negative",
+      "outcome": "hit",
+      "explored": 44,
+      "runtimeMs": 806,
+      "confirmed": [
+        "VIOLATION:total balance never negative",
+        "ANOMALY:serial-equivalence"
+      ],
+      "unconfirmed": [],
+      "stoppedBy": "complete",
+      "observedPreemptions": 1
+    },
+    {
+      "id": "writeskew-pg-serializable-retry",
+      "expect": "safe",
+      "scope": "in",
+      "class": "write-skew",
+      "driver": "pg",
+      "outcome": "clean",
+      "explored": 44,
+      "runtimeMs": 872,
+      "confirmed": [],
+      "unconfirmed": [],
+      "stoppedBy": "complete"
+    }
+  ]
+}
