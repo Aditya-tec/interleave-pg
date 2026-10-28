@@ -1,0 +1,7 @@
+deadlock_timeout | explore time (idle) | explored | victims over 40 forced deadlocks, idle | victims over 40, all cores busy
+50ms             |   1853 ms          |  34      | {"A":40}           | {"B":40}
+100ms            |   3782 ms          |  34      | {"A":40}           | {"A":39,"B":1}
+150ms            |   4004 ms          |  34      | {"A":40}           | {"A":40}
+200ms            |   4896 ms          |  34      | {"A":40}           | {"A":40}
+300ms            |   6844 ms          |  34      | {"A":40}           | {"A":40}
+500ms            |  10494 ms          |  34      | {"A":40}           | {"A":40}

@@ -16,7 +16,7 @@ import { resolveInside } from './safe-paths.js';
 const USAGE = `interleave-pg - force concurrent Postgres statements through many interleavings (local throwaway DB only)
 
 Usage:
-  interleave-pg init-db [--name interleave_dev] [--compose]
+  interleave-pg init-db [--name interleave_dev] [--compose] [--deadlock-timeout 300ms]
   interleave-pg run <scenario.mjs> [--max-preemptions K] [--max-schedules N] [--time-budget 120s]
                     [--strategy dfs|random --seed N --runs M] [--isolation default|rc|rr|ser|matrix]
                     [--json out.json] [--allow-dir DIR]
@@ -80,14 +80,14 @@ async function main(argv: string[]): Promise<number> {
   const common = { dsn: { type: 'string' as const } };
 
   if (cmd === 'init-db') {
-    const { values } = parseArgs({ args: rest, options: { ...common, name: { type: 'string' }, compose: { type: 'boolean' } } });
+    const { values } = parseArgs({ args: rest, options: { ...common, name: { type: 'string' }, compose: { type: 'boolean' }, 'deadlock-timeout': { type: 'string' } } });
     if (values.compose) {
       out(COMPOSE);
       return 0;
     }
     const dsn = values.dsn ?? process.env.INTERLEAVE_DSN;
     if (!dsn) throw new UnsafeTargetError('refusing: no DSN. Set INTERLEAVE_DSN (a maintenance database on the local server) or pass --dsn');
-    const target = await initDb({ adminDsn: dsn, name: values.name ?? 'interleave_dev' });
+    const target = await initDb({ adminDsn: dsn, name: values.name ?? 'interleave_dev', deadlockTimeout: values['deadlock-timeout'] });
     out(`database ready: ${redactDsn(target)}`);
     return 0;
   }

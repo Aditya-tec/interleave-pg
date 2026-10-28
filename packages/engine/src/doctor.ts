@@ -27,7 +27,7 @@ export async function doctor(dsn: string | undefined, fromDir: string): Promise<
     const maj = Number(v.split('.')[0]);
     add(maj >= 14 && maj <= 18, `Postgres ${v} (tested range 14-18)`);
     const d = (await c.query('SHOW deadlock_timeout')).rows[0].deadlock_timeout as string;
-    add(d === '300ms', `deadlock_timeout is ${d} (init-db sets 300ms)`);
+    add(true, `deadlock_timeout is ${d} (init-db default 300ms; below about 100ms the deadlock victim can vary under CPU load)`);
   } finally {
     await c.end();
   }

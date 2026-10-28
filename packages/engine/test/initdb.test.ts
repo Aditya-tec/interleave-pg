@@ -31,3 +31,29 @@ describe('init-db', () => {
     await expect(initDb({ adminDsn: adminDsn(), name: 'interleave_x"; DROP DATABASE postgres; --' })).rejects.toThrow();
   });
 });
+
+describe('configurable deadlock_timeout', () => {
+  const N2 = 'interleave_test_dltimeout';
+  afterAll(async () => {
+    const c = new pg.Client(adminDsn());
+    await c.connect();
+    await c.query(`DROP DATABASE IF EXISTS ${N2}`);
+    await c.end();
+  });
+  it('init-db applies a custom value and the default is 300ms', async () => {
+    const show = async (dsn: string) => {
+      const c = new pg.Client(dsn);
+      await c.connect();
+      const r = await c.query('SHOW deadlock_timeout');
+      await c.end();
+      return r.rows[0].deadlock_timeout as string;
+    };
+    expect(await show(await initDb({ adminDsn: adminDsn(), name: N2, deadlockTimeout: '150ms' }))).toBe('150ms');
+    expect(await show(await initDb({ adminDsn: adminDsn(), name: N2 }))).toBe('300ms');
+  });
+  it('rejects values that are not a bounded duration (no SQL is built from them)', async () => {
+    for (const bad of ['abc', '5ms', '11s', "1s'; DROP DATABASE postgres; --", '', '1.5s', '-100ms']) {
+      await expect(initDb({ adminDsn: adminDsn(), name: N2, deadlockTimeout: bad })).rejects.toThrow(/deadlock timeout/i);
+    }
+  });
+});
