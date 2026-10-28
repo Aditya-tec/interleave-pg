@@ -222,16 +222,26 @@ interleave-pg run <scenario> [--isolation default|rc|rr|ser|matrix] [--max-preem
                          [--schedule A,B,A,B]            # one forced schedule instead of exploring
                          [--json out.json] [--allow-dir DIR]... [--html out.html] [--strict]
 interleave-pg replay <report.json> [--violation <id>] [--allow-dir DIR]...
-interleave-pg doctor            # checks Node, Postgres reachability/version, marker table, pg resolution
+interleave-pg doctor [scenario] [--allow-dir DIR]...
+                                # checks Node, pg resolution, DSN safety, Postgres reachability/version, marker table;
+                                # with a scenario: that it loads, that pg resolves from its directory, that its tables exist
 ```
-DSN only from `--dsn` or `INTERLEAVE_DSN` (never implicitly from `DATABASE_URL`). `--html` and `--strict` arrive in Phase 4.
+DSN only from `--dsn` or `INTERLEAVE_DSN` (never implicitly from `DATABASE_URL`).
+
+Phase 4 behaviour (implemented and tested):
+- `--html out.html` writes one self-contained page: inline CSS only, no script, no external reference, a `Content-Security-Policy` meta tag (`default-src 'none'`), and **every dynamic string escaped** (S4). It follows the same file rules as `--json` (a `.html` name; an existing file is overwritten only if it begins with the `<!-- interleave-pg report -->` marker).
+- `--strict` turns what cannot be gated (`COPY`, `LISTEN`/`NOTIFY`, cursors/streams/Submittable objects, statements issued outside any actor while a run is active) from a warning into an `UnsupportedError` that stops the run (exit 2).
+- `doctor` never throws for a misconfiguration: every `[FAIL]` line is followed by a `fix:` line. Exit 0 healthy, 3 when the target was refused by the guard (no DSN, remote host, bad database name, `NODE_ENV=production`, missing marker table), 2 for any other failure.
+- Ctrl-C (SIGINT) and SIGTERM roll back open transactions, close every connection, release the advisory lock, and exit 130 / 143. A second signal, or a cleanup that takes longer than 5 s, exits at once.
+- Errors for the common mistakes (database not running, database missing, wrong password, unknown option or command) say what happened and what to do, and never print a stack or a password (S5).
 
 File access rules (S10, implemented and tested in Phase 3). Reports and scenarios named on the command line, and every
 `--json` output, may only live inside the working directory or inside a directory named with `--allow-dir`:
 - paths are resolved to real paths before they are checked; a path that reaches its root only through `..`, an absolute path elsewhere, or **any symbolic link or directory junction** on the way (including the final component) is refused;
 - an `--allow-dir` must exist, must be a real directory (not a link), and may never be a filesystem or drive root or the user's home directory;
 - `--json` requires a `.json` name, refuses a directory, and refuses to overwrite an existing file that does not parse as an interleave-pg report (so `package.json`, notes and source files are never touched); the file is written to a temporary file in the same directory and renamed into place;
-- reports are limited to 1 MiB, validated against a strict schema, and never evaluated.
+- reports are limited to 1 MiB, validated against a strict schema, and never evaluated;
+- `report.json` carries `schemaVersion` (currently `1`). `replay` refuses a report with no `schemaVersion` or an unknown one with a clear message, and `run --json` validates what it is about to write against `packages/engine/schema/report.schema.json` and refuses to write a report that does not match (an internal error, never silently written).
 
 ---
 
@@ -438,10 +448,12 @@ References to write: `anomalies.md` (catalog with SQL timelines), `fix-patterns.
 ## Appendix B — `report.json` sketch
 ```json
 {
+  "schemaVersion": 1,
   "tool": "interleave-pg", "version": "x.y.z", "scenario": "gift card double redeem",
   "target": { "host": "localhost", "db": "interleave_dev", "pg": "17.x", "isolation": "read committed" },
   "coverage": { "explored": 70, "preemptionBound": 3, "exhaustiveWithinBound": true, "stoppedBy": "complete" },
   "oracles": ["invariants", "serial-equivalence"],
+  "oracle": { "status": "ok" },          // or { "status": "unreliable", "reason": "..." }: ANOMALY findings are then suppressed
   "violations": [{
     "id": "v1", "kind": "VIOLATION|ANOMALY", "invariant": "balance never negative",
     "confirmed": "3/3", "preemptions": 1, "schedule": ["A","B","A","B"],

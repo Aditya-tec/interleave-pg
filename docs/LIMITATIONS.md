@@ -54,3 +54,10 @@
 - **Random values stored in tables make the serial oracle flag serial schedules.** With random ids or timestamps in the data, no serial reference equals another run's snapshot, so a CONFIRMED ANOMALY can appear at schedule #1 with 0 preemptions. The finding carries the "nondeterministic scenario" warning, but the report does not say that a 0-preemption anomaly means nondeterministic data rather than a race. Use `ignoreColumns` for generated values. (Phase 4 suggestion: label such a finding "oracle unreliable".)
 - **Aborts the user would see are not surfaced.** A SERIALIZABLE transaction without a retry loop, or a deadlock victim that is not retried, reports clean when the final state is serial and the invariants hold. A 23505/23P01 rejection prints an informational note, a 40001/40P01 abort does not. (Phase 4 suggestion: print the same note.)
 - **Cost with three or four actors.** A 3-actor write skew took 1,752 schedules (20 s locally); 4 actors x 6 statements stop at the 2000-schedule budget (39 s) and are reported as non-exhaustive.
+
+## Found or changed in Phase 4
+- **Phase 3b limits addressed.** A 0-preemption ANOMALY is never reported as a race (the oracle is marked UNRELIABLE and ANOMALY findings are suppressed); 40001/40P01 aborts print a note; the bound message says how to raise it and what it costs. The bound itself is still a hard edge: a bug needing more preemptions than the bound is not found, and the output says so.
+- **Oracle self-check costs two serial runs** and can mark a scenario UNRELIABLE when the serial runs differ only by data the user could have listed in `ignoreColumns`; invariant findings are unaffected.
+- **`--strict` only sees what goes through the patched `pg` client.** A driver other than `pg` is invisible to the tool in every mode (zero-statements error).
+- **The real-signal Ctrl-C test does not run on Windows** (Node cannot deliver SIGINT to a child there); it runs on Linux CI. On Windows the in-process tests cover the handler logic only.
+- **The README quickstart needs Docker** for the throwaway database (or any local Postgres plus `init-db`), and clones the default branch.
