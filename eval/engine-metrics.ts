@@ -71,6 +71,8 @@ interface Row {
   expectedMinPreemptions?: number;
   /** preemptions of the first schedule that showed the expected finding */
   observedPreemptions?: number;
+  /** 1-based schedule at which the expected finding was first confirmed (data for "found early") */
+  firstViolationIndex?: number;
   outcome: Outcome;
   explored: number | null;
   runtimeMs: number;
@@ -82,6 +84,21 @@ interface Row {
 }
 
 const HARNESS_LIMIT_MS = 300_000;
+/** A run given a long time budget must not be cut off by the harness first: the budget plus 180 s (the margin the default 120 s budget has). */
+export function harnessLimitMs(timeBudgetMs?: number): number {
+  return Math.max(HARNESS_LIMIT_MS, (timeBudgetMs ?? 0) + 180_000);
+}
+/** Same notation as the CLI: 500ms, 30s, 2m. */
+export function parseDuration(v: string | undefined): number | undefined {
+  if (v === undefined) return undefined;
+  const m = /^(\d+)(ms|s|m)$/.exec(v);
+  if (!m) throw new Error('--time-budget must look like 500ms, 30s or 2m');
+  return Number(m[1]) * (m[2] === 'ms' ? 1 : m[2] === 's' ? 1000 : 60_000);
+}
+/** Schedule index of the first confirmed violation of the given invariant, if any. */
+export function firstViolationIndex(report: { violations: { status: string; invariant: string; scheduleIndex: number }[] } | undefined, invariant: string | undefined): number | undefined {
+  return report?.violations.find((v) => v.status === 'CONFIRMED' && v.invariant === invariant)?.scheduleIndex;
+}
 const here = dirname(fileURLToPath(import.meta.url));
 const corpus = resolve(here, '..', 'corpus');
 
@@ -107,7 +124,7 @@ function discover(set: string): { id: string; dir: string; expected: Expected }[
     .map((e) => ({ ...e, expected: JSON.parse(readFileSync(join(e.dir, 'expected.json'), 'utf8')) as Expected }));
 }
 
-async function runOne(dsn: string, dir: string, expected: Expected, id: string): Promise<Row> {
+async function runOne(dsn: string, dir: string, expected: Expected, id: string, timeBudgetMs?: number): Promise<Row> {
   const row: Row = {
     id,
     expect: expected.expect,
@@ -129,8 +146,8 @@ async function runOne(dsn: string, dir: string, expected: Expected, id: string):
   try {
     const { scenario, dir: scenarioDir } = await loadScenario(join(dir, 'scenario.mjs'));
     session = await createSession(scenario, { dsn, scenarioDir });
-    const limit = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error(`harness limit of ${HARNESS_LIMIT_MS / 1000} s exceeded`)), HARNESS_LIMIT_MS); });
-    report = await Promise.race([explore(session, {}), limit]);
+    const limit = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error(`harness limit of ${harnessLimitMs(timeBudgetMs) / 1000} s exceeded`)), harnessLimitMs(timeBudgetMs)); });
+    report = await Promise.race([explore(session, timeBudgetMs === undefined ? {} : { timeBudgetMs }), limit]);
   } catch (e: any) {
     row.error = `${e?.name ?? 'Error'}: ${String(e?.message ?? e)}`;
   } finally {
@@ -144,7 +161,7 @@ async function runOne(dsn: string, dir: string, expected: Expected, id: string):
     row.stoppedBy = report.coverage.stoppedBy;
     row.confirmed = report.violations.filter((v) => v.status === 'CONFIRMED').map((v) => `${v.kind}:${v.invariant}`);
     const hit = report.violations.find((v) => v.status === 'CONFIRMED' && v.invariant === expected.invariant);
-    if (hit) row.observedPreemptions = hit.preemptions;
+    if (hit) { row.observedPreemptions = hit.preemptions; row.firstViolationIndex = hit.scheduleIndex; }
     row.unconfirmed = report.violations.filter((v) => v.status !== 'CONFIRMED').map((v) => `${v.kind}:${v.invariant}`);
   }
 
@@ -274,9 +291,10 @@ async function main() {
   if (!dsn) throw new Error('set INTERLEAVE_DSN to a local throwaway database (see `interleave-pg init-db`)');
   const found = discover(set).filter((e) => !only || only.includes(e.id));
   if (found.length === 0) throw new Error(`no scenarios found under corpus/${set} (a scenario directory needs scenario.mjs and expected.json)`);
+  const timeBudgetMs = parseDuration(arg('time-budget'));
   const rows: Row[] = [];
   for (const e of found) {
-    const row = await runOne(dsn, e.dir, e.expected, e.id);
+    const row = await runOne(dsn, e.dir, e.expected, e.id, timeBudgetMs);
     rows.push(row);
     process.stderr.write(`${set}/${e.id}: ${row.outcome} (${row.explored ?? '-'} schedules, ${sec(row.runtimeMs)})\n`);
   }
