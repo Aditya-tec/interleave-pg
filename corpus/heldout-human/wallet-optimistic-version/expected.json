@@ -1,0 +1,2 @@
+{ "verdict": "safe",
+  "notes": "Optimistic concurrency: version column plus retry loop. A different correct fix from locks, constraints and conditional updates. The retry adds statements on the losing path." }

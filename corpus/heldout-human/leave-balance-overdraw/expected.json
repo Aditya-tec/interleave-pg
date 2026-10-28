@@ -1,0 +1,2 @@
+{ "verdict": "buggy", "bugClass": "lost-update", "mustFailInvariant": "approved leave never exceeds the balance", "minPreemptions": 1,
+  "notes": "Both requests read days_left=5, both approve 3 days, balance is overwritten with 2." }

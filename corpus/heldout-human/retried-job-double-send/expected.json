@@ -1,0 +1,2 @@
+{ "verdict": "buggy", "bugClass": "check-then-insert", "mustFailInvariant": "a job is sent at most once", "minPreemptions": 1,
+  "notes": "Two workers both see status=pending and both write an outbox row." }

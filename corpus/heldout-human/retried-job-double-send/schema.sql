@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS jobs (id int PRIMARY KEY, status text NOT NULL);
+CREATE TABLE IF NOT EXISTS outbox (id serial PRIMARY KEY, job_id int NOT NULL, body text NOT NULL);
