@@ -20,7 +20,7 @@ Usage:
   interleave-pg init-db [--name interleave_dev] [--compose] [--deadlock-timeout 300ms]
   interleave-pg run <scenario.mjs> [--max-preemptions K] [--max-schedules N] [--time-budget 120s]
                     [--strategy dfs|random --seed N --runs M] [--isolation default|rc|rr|ser|matrix]
-                    [--json out.json] [--html out.html] [--allow-dir DIR]
+                    [--json out.json] [--html out.html] [--strict] [--allow-dir DIR]
   interleave-pg run <scenario.mjs> --schedule A,B,A,B        (one forced schedule)
   interleave-pg replay <report.json> [--violation v1] [--allow-dir DIR]
   interleave-pg doctor [scenario.mjs] [--allow-dir DIR]
@@ -115,6 +115,7 @@ async function main(argv: string[]): Promise<number> {
         isolation: { type: 'string' },
         json: { type: 'string' },
         html: { type: 'string' },
+        strict: { type: 'boolean' },
         'allow-dir': { type: 'string', multiple: true },
       },
     });
@@ -140,7 +141,7 @@ async function main(argv: string[]): Promise<number> {
     const scenarioAbs = resolve(file);
     const rel = relative(process.cwd(), scenarioAbs);
     opts.scenarioFile = rel.startsWith('..') || isAbsolute(rel) ? scenarioAbs : rel;
-    const open = (isolation: Isolation) => createSession(scenario, { dsn, scenarioDir: dir, isolation });
+    const open = (isolation: Isolation) => createSession(scenario, { dsn, scenarioDir: dir, isolation, strict: values.strict === true });
 
     if (values.schedule) {
       if (isoArg === 'matrix') throw new ScenarioError('--schedule cannot be combined with --isolation matrix');

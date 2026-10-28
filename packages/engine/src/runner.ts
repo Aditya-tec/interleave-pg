@@ -21,6 +21,8 @@ export interface SessionOptions {
   lockTimeoutMs?: number;
   /** Isolation level applied to every new connection with SET SESSION CHARACTERISTICS (apps that BEGIN ISOLATION LEVEL themselves override it). */
   isolation?: Isolation;
+  /** --strict: statements that cannot be gated (COPY, LISTEN, cursors, statements outside an actor) stop the run. */
+  strict?: boolean;
 }
 
 export type Isolation = 'default' | 'rc' | 'rr' | 'ser';
@@ -95,7 +97,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
   const target: Target = await assertSafeTarget(opts.dsn, { connect: (t) => connectUnhooked(pg, t) });
   const control = await connectUnhooked(pg, target);
   const db: Db = { query: (sql, values) => control.query(sql, values as any[]) };
-  const state: HookState = newHookState(target);
+  const state: HookState = newHookState(target, opts.strict === true);
   let hook: Hook | undefined;
   let runId = 0;
   const setupWarnings: string[] = [];
@@ -197,6 +199,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
     const t0 = Date.now();
     await reset();
     state.unsafe = null;
+    state.unsupported = null;
     state.warnings.clear();
     state.untracked = 0;
     const warnings: string[] = [];
@@ -217,6 +220,7 @@ export async function createSession(input: ScenarioDefinition, opts: SessionOpti
       state.controller = null;
     }
     if (state.unsafe) throw state.unsafe;
+    if (state.unsupported) throw state.unsupported;
     if (controller.steps.length === 0) throw new NoStatementsError();
 
     const results = ids.map((id) => controller.results.get(id)!);

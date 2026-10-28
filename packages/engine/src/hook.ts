@@ -1,6 +1,7 @@
 import { AsyncResource } from 'node:async_hooks';
 import net from 'node:net';
 import { als } from './actor-context.js';
+import { UnsupportedError } from './errors.js';
 import type { Controller, Outcome } from './controller.js';
 import { assertClientEndpoint, checkClientParams, UnsafeTargetError, type Target } from './guard.js';
 import { BYPASS, type PgModule } from './pg-load.js';
@@ -14,13 +15,17 @@ export interface HookState {
   clients: Set<any>;
   warnings: Set<string>;
   untracked: number;
+  /** --strict: what cannot be gated stops the run instead of passing through with a warning. */
+  strict: boolean;
+  /** First strict-mode refusal; the runner fails the run with it. */
+  unsupported: UnsupportedError | null;
 }
 
 const SEEN = Symbol('interleave-pg.seen');
 const PREPARED = Symbol('interleave-pg.prepared');
 
-export function newHookState(target: Target): HookState {
-  return { target, controller: null, unsafe: null, clients: new Set(), warnings: new Set(), untracked: 0 };
+export function newHookState(target: Target, strict = false): HookState {
+  return { target, controller: null, unsafe: null, clients: new Set(), warnings: new Set(), untracked: 0, strict, unsupported: null };
 }
 
 export interface Hook {
@@ -74,7 +79,15 @@ export function installHook(pg: PgModule, state: HookState): Hook {
     const first = args[0];
     const text: string | undefined =
       typeof first === 'string' ? first : first && typeof first.text === 'string' && typeof first.submit !== 'function' ? first.text : undefined;
+    /** --strict: stop the whole run, naming what could not be gated. */
+    const refuse = (what: string): never => {
+      const e = new UnsupportedError(`${what}; refused because --strict is on (without --strict it is passed through ungated with a warning)`);
+      state.unsupported ??= e;
+      state.controller?.abort(e);
+      throw e;
+    };
     if (text === undefined) {
+      if (state.strict && state.controller) refuse('unsupported statement object (cursor / stream / Submittable)');
       state.warnings.add('unsupported statement object (cursor / stream / Submittable) passed through ungated');
       return original.apply(this, args);
     }
@@ -82,12 +95,14 @@ export function installHook(pg: PgModule, state: HookState): Hook {
     const controller = state.controller;
     if (!store || !controller) {
       if (controller) {
+        if (state.strict) refuse(`statement outside any actor: ${text.slice(0, 60)}`);
         state.untracked++;
         state.warnings.add(`untracked statement outside any actor passed through ungated: ${text.slice(0, 60)}`);
       }
       return original.apply(this, args);
     }
     if (/^\s*(copy|listen|notify)\b/i.test(text)) {
+      if (state.strict) refuse(`${text.trim().split(/\s+/)[0]!.toUpperCase()} cannot be gated`);
       state.warnings.add(`${text.trim().split(/\s+/)[0]!.toUpperCase()} is not gated (unsupported)`);
       return original.apply(this, args);
     }
