@@ -1,16 +1,28 @@
 name: ci
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      heldout:
+        description: 'Also run the held-out and held-out-human sets (a cross-version report; never used to tune the engine)'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   test:
+    name: test (pg ${{ matrix.pg }}, node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
+        # Postgres 14 (final release 2026-11-12) is not tested; 19 is still a release candidate.
+        pg: [15, 16, 17, 18]
         node: [20, 22]
     services:
       postgres:
-        image: postgres:17
+        image: postgres:${{ matrix.pg }}
         env:
           POSTGRES_PASSWORD: interleave-pg
         ports:
@@ -20,6 +32,8 @@ jobs:
           --health-timeout 5s --health-retries 10
     env:
       INTERLEAVE_ADMIN_DSN: postgres://postgres:interleave-pg@127.0.0.1:5433/postgres
+      # The one job whose runtime numbers are the official runtime gate (docs/METRICS.md).
+      DESIGNATED_RUNTIME_JOB: ${{ matrix.pg == 17 && matrix.node == 22 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -27,6 +41,8 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci
       - run: npm run build
+      - name: Postgres server version
+        run: node -e "const {Client}=require('pg');const c=new Client(process.env.INTERLEAVE_ADMIN_DSN);c.connect().then(()=>c.query('select version()')).then(r=>{console.log(r.rows[0].version);return c.end()})"
       - name: Tests (verbose + JSON results)
         run: npm test -w interleave-pg -- --reporter=verbose --reporter=json --outputFile.json=test-results.json
       - name: Fail on any skipped or failed test (environment checks must run in CI, never skip)
@@ -34,4 +50,22 @@ jobs:
           node -e "const r=require('./packages/engine/test-results.json'); console.log(r.numPassedTests+' passed, '+r.numPendingTests+' skipped, '+r.numFailedTests+' failed, '+r.numTodoTests+' todo'); if(r.numPendingTests>0||r.numFailedTests>0||r.numTodoTests>0||r.numPassedTests===0) process.exit(1)"
       - name: Determinism check (explore every seed 5 times, compare counts, findings and full reports)
         run: node packages/engine/scripts/determinism.mjs --iterations 5
+      - name: Corpus metrics, dev set (results and gates)
+        run: |
+          INTERLEAVE_DSN="$INTERLEAVE_ADMIN_DSN" node packages/engine/dist/cli.js init-db --name interleave_test
+          export INTERLEAVE_DSN="${INTERLEAVE_ADMIN_DSN%/postgres}/interleave_test"
+          node node_modules/typescript/bin/tsc -p eval
+          node eval/engine-metrics.js --set dev --out eval/results/ci-dev.json --md eval/results/ci-dev.md
+          echo "METRICS_SUMMARY pg=${{ matrix.pg }} node=${{ matrix.node }} $(node -e "const s=require('./eval/results/ci-dev.json').summary;console.log(JSON.stringify({recall:s.recall,fpRate:s.fpRate,confirmation:s.confirmationRate,exploredMedian:s.exploredMedian,exploredP95:s.exploredP95,runtimeMedianMs:s.runtimeMedianMs,runtimeP95Ms:s.runtimeP95Ms}))")"
+          if [ "$DESIGNATED_RUNTIME_JOB" = "true" ]; then node eval/check-gates.mjs eval/results/ci-dev.json --runtime; else node eval/check-gates.mjs eval/results/ci-dev.json; fi
+      - name: Held-out sets (only on request; cross-version report, never used to tune)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.heldout }}
+        run: |
+          export INTERLEAVE_DSN="${INTERLEAVE_ADMIN_DSN%/postgres}/interleave_test"
+          for set in heldout heldout-human; do
+            if ls corpus/$set/*/expected.json >/dev/null 2>&1; then
+              node eval/engine-metrics.js --set $set --out eval/results/ci-$set.json --md eval/results/ci-$set.md
+              echo "HELDOUT_SUMMARY set=$set pg=${{ matrix.pg }} node=${{ matrix.node }} $(node -e "const j=require('./eval/results/ci-$set.json');console.log(JSON.stringify({summary:j.summary,rows:j.rows.map(r=>[r.id,r.outcome,r.explored,r.runtimeMs])}))")"
+            fi
+          done
       - run: npm audit --omit=dev

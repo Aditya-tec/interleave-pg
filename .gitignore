@@ -4,3 +4,4 @@ dist/
 .env
 **/test/.tmp/
 test-results.json
+eval/results/ci-*
