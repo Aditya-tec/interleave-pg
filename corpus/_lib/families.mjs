@@ -676,8 +676,8 @@ export const VARIANTS = {
 export function build(id) {
   const v = VARIANTS[id];
   if (!v) throw new Error(`unknown corpus variant ${id}`);
-  const { schemaSql, ...scenario } = v.make();
-  return { ...scenario, schema: 'schema.sql' };
+  const { schemaSql, seed, ...scenario } = v.make();
+  return { ...scenario, ...(seed ? { seed: async (db) => { await db.query(seed); } } : {}), schema: 'schema.sql' };
 }
 
 /** schema.sql text for the variant (idempotent: drops its tables first). */
