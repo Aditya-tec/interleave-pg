@@ -48,3 +48,9 @@
 - **Metrics script:** prints percentages even for a set of 5 (quote counts), and does not record preemption counts.
 - **Tests must not explore the real held-out sets.** One did, once, on CI (HELDOUT.md); it now passes `--only`.
 - **Platform notes:** Postgres 14 and macOS untested; on Windows file symlink tests may return early for lack of privilege (Linux CI runs them).
+
+## Found in Phase 3b (hard set; design limits, not bugs)
+- **The preemption bound is a hard edge.** A bug that needs more preemptions than the bound is not found, and the report only says "exhaustive within bound K". Demonstrated: the author's 3-preemption scenario is found at the default bound 3 and missed at bound 2.
+- **Random values stored in tables make the serial oracle flag serial schedules.** With random ids or timestamps in the data, no serial reference equals another run's snapshot, so a CONFIRMED ANOMALY can appear at schedule #1 with 0 preemptions. The finding carries the "nondeterministic scenario" warning, but the report does not say that a 0-preemption anomaly means nondeterministic data rather than a race. Use `ignoreColumns` for generated values. (Phase 4 suggestion: label such a finding "oracle unreliable".)
+- **Aborts the user would see are not surfaced.** A SERIALIZABLE transaction without a retry loop, or a deadlock victim that is not retried, reports clean when the final state is serial and the invariants hold. A 23505/23P01 rejection prints an informational note, a 40001/40P01 abort does not. (Phase 4 suggestion: print the same note.)
+- **Cost with three or four actors.** A 3-actor write skew took 1,752 schedules (20 s locally); 4 actors x 6 statements stop at the 2000-schedule budget (39 s) and are reported as non-exhaustive.

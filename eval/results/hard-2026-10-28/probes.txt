@@ -1,0 +1,105 @@
+# Post-hoc probes on the hard set (analysis only; the first-run table is hard.md). Engine unchanged.
+
+$ interleave-pg run corpus/hard/claim-precheck-deep-yield/scenario.mjs --max-preemptions 2
+Scenario: lease acquisition with pre-check, both back off late
+Target:   127.0.0.1:5433/interleave_test   isolation: default
+Strategy: iterative context bounding (0, 1, 2 ... preemptions), DFS
+Oracles:  invariants, serial-equivalence
+
+No violations found in 10 schedules (preemption bound 2, exhaustive within bound: yes)
+Coverage: explored 10 schedules, preemption bound 2, exhaustive within bound: yes, stopped by: complete
+[exit 0]
+
+$ interleave-pg run corpus/hard/claim-precheck-deep-yield/scenario.mjs --max-preemptions 3
+Scenario: lease acquisition with pre-check, both back off late
+Target:   127.0.0.1:5433/interleave_test   isolation: default
+Strategy: iterative context bounding (0, 1, 2 ... preemptions), DFS
+Oracles:  invariants, serial-equivalence
+
+CONFIRMED (3/3) VIOLATION: somebody holds the lease
+  first seen at schedule #12 with 3 preemptions; seen in 2 schedules in total
+  schedule: B,A,A,B,B,A,A,B
+   #  Actor Txn  SQL                                              Params          Result
+  notice: This run cannot see locks held outside the database. If such a lock serializes these actors in production, this race may not occur there.
+  hint (heuristic): check-then-insert: B checked "lease3_claims" (step 1), A inserted (step 3), then B inserted (step 4). Typical fix: add a unique constraint and INSERT ... ON CONFLICT
+
+CONFIRMED (3/3) ANOMALY: serial-equivalence - the outcome matches no serial execution of the actors
+  first seen at schedule #12 with 3 preemptions; seen in 2 schedules in total
+  schedule: B,A,A,B,B,A,A,B
+   #  Actor Txn  SQL                                              Params          Result
+  notice: This run cannot see locks held outside the database. If such a lock serializes these actors in production, this race may not occur there.
+  hint (heuristic): check-then-insert: B checked "lease3_claims" (step 1), A inserted (step 3), then B inserted (step 4). Typical fix: add a unique constraint and INSERT ... ON CONFLICT
+
+2 confirmed findings in 16 schedules explored.
+Coverage: explored 16 schedules, preemption bound 3, exhaustive within bound: yes, stopped by: complete
+[exit 1]
+
+$ interleave-pg run corpus/hard/claim-backoff-both-yield/scenario.mjs --max-preemptions 1
+Scenario: lease acquisition where both claimants back off
+Target:   127.0.0.1:5433/interleave_test   isolation: default
+Strategy: iterative context bounding (0, 1, 2 ... preemptions), DFS
+Oracles:  invariants, serial-equivalence
+
+No violations found in 4 schedules (preemption bound 1, exhaustive within bound: yes)
+Coverage: explored 4 schedules, preemption bound 1, exhaustive within bound: yes, stopped by: complete
+[exit 0]
+
+$ interleave-pg run corpus/hard/ser-no-retry/scenario.mjs
+Scenario: serializable write skew without retry
+Target:   127.0.0.1:5433/interleave_test   isolation: default
+Strategy: iterative context bounding (0, 1, 2 ... preemptions), DFS
+Oracles:  invariants, serial-equivalence
+
+No violations found in 44 schedules (preemption bound 3, exhaustive within bound: yes)
+Coverage: explored 44 schedules, preemption bound 3, exhaustive within bound: yes, stopped by: complete
+[exit 0]
+
+$ interleave-pg run corpus/hard/ser-no-retry/scenario.mjs --isolation matrix
+Isolation matrix: serializable write skew without retry
+(what the explored schedules showed per level; the app's own BEGIN ISOLATION LEVEL overrides the session level)
+
+level  admitted      aborted (retriable)   prevented by blocking/constraint
+rc     no            40001                 -
+rr     no            40001                 -
+ser    no            40001                 -
+
+rc: Coverage: explored 44 schedules, preemption bound 3, exhaustive within bound: yes, stopped by: complete
+rr: Coverage: explored 44 schedules, preemption bound 3, exhaustive within bound: yes, stopped by: complete
+ser: Coverage: explored 44 schedules, preemption bound 3, exhaustive within bound: yes, stopped by: complete
+[exit 0]
+
+$ interleave-pg run corpus/hard/limit-nondeterministic-race/scenario.mjs
+Scenario: lost update with random ids and timestamps in the statements
+Target:   127.0.0.1:5433/interleave_test   isolation: default
+Strategy: iterative context bounding (0, 1, 2 ... preemptions), DFS
+Oracles:  invariants, serial-equivalence
+
+CONFIRMED (3/3) ANOMALY: serial-equivalence - the outcome matches no serial execution of the actors
+  first seen at schedule #1 with 0 preemptions; seen in 18 schedules in total
+  schedule: A,A,A,B,B,B
+   #  Actor Txn  SQL                                              Params          Result
+  notice: This run cannot see locks held outside the database. If such a lock serializes these actors in production, this race may not occur there.
+  warning: nondeterministic scenario: the statement sequence (SQL + parameters) differed between the original run and a replay
+
+CONFIRMED (3/3) VIOLATION: both deposits counted
+  first seen at schedule #3 with 1 preemption; seen in 16 schedules in total
+  schedule: B,B,A,A,A,B
+   #  Actor Txn  SQL                                              Params          Result
+  notice: This run cannot see locks held outside the database. If such a lock serializes these actors in production, this race may not occur there.
+  hint (heuristic): read-modify-write: B read "lim3_wallet" (step 1), A wrote it (step 5), then B wrote it from the stale read (step 6). Typical fix: do the update in one statement (UPDATE t SET n = n + $1), or SELECT ... FOR UPDA
+  warning: nondeterministic scenario: the statement sequence (SQL + parameters) differed between the original run and a replay
+
+2 confirmed findings in 18 schedules explored.
+Coverage: explored 18 schedules, preemption bound 3, exhaustive within bound: yes, stopped by: complete
+[exit 1]
+
+$ interleave-pg run corpus/hard/limit-state-explosion/scenario.mjs --max-schedules 200
+Scenario: four actors with six statements each
+Target:   127.0.0.1:5433/interleave_test   isolation: default
+Strategy: iterative context bounding (0, 1, 2 ... preemptions), DFS
+Oracles:  invariants, serial-equivalence
+
+No violations found in 200 schedules (preemption bound 3, exhaustive within bound: no)
+The search stopped early (schedule-budget); it is not exhaustive.
+Coverage: explored 200 schedules, preemption bound 3, exhaustive within bound: no, stopped by: schedule-budget
+[exit 0]
